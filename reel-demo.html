@@ -1,0 +1,1862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Reel — track what you watch (demo)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0B0F;
+    --bg-elevated:#151319;
+    --bg-card:#1C1A22;
+    --bg-card-2:#242130;
+    --gold:#E8B34D;
+    --gold-dim:#8A6B34;
+    --teal:#2FA98C;
+    --teal-dim:#1E6F5C;
+    --velvet:#C1394A;
+    --velvet-dim:#7C2634;
+    --text:#F2EFEA;
+    --text-dim:#A7A3AF;
+    --text-faint:#686570;
+    --border:rgba(242,239,234,0.09);
+    --border-strong:rgba(242,239,234,0.16);
+    --font-display:'Bebas Neue', sans-serif;
+    --font-body:'Manrope', sans-serif;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-t: env(safe-area-inset-top, 0px);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; height:100%; background:var(--bg); overscroll-behavior:none;}
+  body{
+    font-family:var(--font-body); color:var(--text);
+    width:100%; max-width:520px; margin:0 auto;
+    height:100dvh; height:100vh;
+    display:flex; flex-direction:column;
+    position:relative; overflow:hidden;
+  }
+  #app{display:flex; flex-direction:column; flex:1; overflow:hidden;}
+  button, input, textarea, select{font-family:inherit; color:inherit;}
+  button{cursor:pointer;}
+  ::selection{background:var(--gold); color:#151319;}
+
+  /* ---------- sprocket strip (signature motif) ---------- */
+  .sprocket{
+    height:10px; width:100%; flex:none;
+    background-image: radial-gradient(circle 3px, rgba(242,239,234,0.14) 3px, transparent 3.5px);
+    background-size: 22px 10px;
+    background-position: 8px center;
+    background-color: var(--bg-elevated);
+    border-bottom:1px solid var(--border);
+    padding-top: var(--safe-t);
+  }
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    flex:none; background:var(--bg-elevated); border-bottom:1px solid var(--border);
+    padding:14px 18px 12px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .topbar h1{
+    font-family:var(--font-display); letter-spacing:0.5px;
+    font-size:26px; font-weight:400; margin:0; color:var(--gold);
+    display:flex; align-items:baseline; gap:8px;
+  }
+  .topbar h1 small{font-family:var(--font-body); font-size:11px; color:var(--text-faint); font-weight:600; letter-spacing:1.5px; text-transform:uppercase;}
+  .chip-row{display:flex; gap:6px; align-items:center; overflow:hidden;}
+  .swipe-filter-row{
+    display:flex; gap:6px; overflow:hidden; flex-shrink:0;
+    max-width:0; opacity:0;
+    transition:max-width 0.32s ease, opacity 0.22s ease;
+  }
+  .swipe-filter-row.open{ max-width:260px; opacity:1; }
+  .chip{
+    font-size:12px; font-weight:700; letter-spacing:0.3px; text-transform:uppercase;
+    padding:6px 12px; border-radius:20px; border:1px solid var(--border-strong);
+    background:transparent; color:var(--text-dim); white-space:nowrap;
+  }
+  .chip.active{background:var(--gold); color:#1a1408; border-color:var(--gold);}
+
+  /* ---------- screens ---------- */
+  .screens{flex:1; min-height:0; position:relative;}
+  .screen{
+    position:absolute; inset:0; display:none; flex-direction:column;
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+  }
+  .screen.active{display:flex;}
+  .screen-pad{padding:16px 16px calc(24px + var(--safe-b)); }
+
+  /* ---------- bottom nav ---------- */
+  .bottomnav{
+    flex:none; display:flex; align-items:center; justify-content:space-around;
+    background:var(--bg-elevated); border-top:1px solid var(--border);
+    padding:8px 6px calc(8px + var(--safe-b));
+    position:relative; z-index:20;
+  }
+  .navbtn{
+    background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:3px;
+    color:var(--text-faint); font-size:10px; font-weight:700; letter-spacing:0.4px; text-transform:uppercase;
+    padding:4px 8px; border-radius:10px; flex:1;
+  }
+  .navbtn svg{width:22px; height:22px;}
+  .navbtn.active{color:var(--gold);}
+  .navbtn.search-main{
+    flex:none; width:64px; height:64px; border-radius:50%;
+    background:var(--gold); color:#1a1408; margin-top:-32px; box-shadow:0 4px 18px rgba(0,0,0,0.5);
+    border:3px solid var(--bg-elevated);
+    flex-direction:row; gap:0; justify-content:center; padding:0;
+  }
+  .navbtn.search-main svg{width:28px; height:28px;}
+  .navbtn.search-main span{display:none;}
+
+  /* ---------- swipe screen ---------- */
+  .swipe-wrap{
+    flex:1; position:relative; padding:14px 14px 4px; min-height:0; display:flex; flex-direction:column;
+  }
+  .swipe-stage{flex:1; position:relative; min-height:0; overflow:hidden;}
+  .swipe-card{
+    position:absolute; inset:0; border-radius:18px; overflow:hidden;
+    background:var(--bg-card); border:1px solid var(--border);
+    touch-action:none; will-change:transform;
+    display:flex; flex-direction:column;
+  }
+  .swipe-card img{width:100%; height:100%; object-fit:cover; position:absolute; inset:0; pointer-events:none; user-select:none;}
+  .swipe-card .noimg{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:var(--text-faint); font-family:var(--font-display); font-size:22px; text-align:center; padding:20px;
+    background:linear-gradient(160deg,#241f2c,#151319);
+  }
+  .swipe-card .fade{
+    position:absolute; left:0; right:0; bottom:0; height:52%;
+    background:linear-gradient(to top, rgba(11,11,15,0.96) 10%, rgba(11,11,15,0.55) 55%, transparent 100%);
+  }
+  .swipe-card .info{
+    position:absolute; left:0; right:0; bottom:0; padding:18px 18px 20px; pointer-events:none;
+  }
+  .swipe-card .info .type-badge{
+    display:inline-block; font-size:10px; font-weight:800; letter-spacing:1px; text-transform:uppercase;
+    color:var(--gold); border:1px solid var(--gold-dim); border-radius:5px; padding:2px 7px; margin-bottom:8px;
+  }
+  .swipe-card .info h2{
+    font-family:var(--font-display); font-weight:400; font-size:28px; line-height:1.05; margin:0 0 6px; letter-spacing:0.3px;
+  }
+  .swipe-card .info .meta{font-size:13px; color:var(--text-dim); margin:0 0 8px; display:flex; gap:10px; align-items:center;}
+  .swipe-card .info .meta .rating{color:var(--gold); font-weight:700;}
+  .swipe-card .info p.overview{font-size:13px; color:var(--text-dim); line-height:1.5; margin:0 0 10px; display:-webkit-box; -webkit-line-clamp:3; line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
+  .swipe-card .info .genre-pills{display:flex; flex-wrap:wrap; gap:5px; margin:0 0 10px; pointer-events:none;}
+  .swipe-card .info .genre-pill{font-size:10px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; color:var(--text-dim); background:rgba(255,255,255,0.08); border-radius:4px; padding:2px 7px;}
+  .swipe-card .info .trailer-btn{
+    pointer-events:auto; display:inline-flex; align-items:center; gap:5px;
+    font-size:11px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase;
+    color:var(--bg-elevated); background:rgba(255,255,255,0.85); border:none; border-radius:6px;
+    padding:5px 12px; cursor:pointer;
+  }
+  .swipe-card .info .trailer-btn:active{opacity:0.75;}
+  .stamp{
+    position:absolute; font-family:var(--font-display); font-size:54px; letter-spacing:3px;
+    padding:10px 22px; border:5px solid; border-radius:10px; opacity:0; pointer-events:none;
+  }
+  .stamp.seen{top:28px; left:16px; color:var(--teal); border-color:var(--teal); transform:rotate(-14deg); text-shadow:0 0 24px rgba(47,169,140,0.5);}
+  .stamp.notseen{top:28px; right:16px; color:var(--gold); border-color:var(--gold); transform:rotate(14deg); text-shadow:0 0 24px rgba(232,179,77,0.5);}
+  .stamp.skip-up{top:50%; left:50%; transform:translate(-50%,-50%); color:var(--velvet); border-color:var(--velvet); text-shadow:0 0 24px rgba(193,57,74,0.5);}
+
+  .swipe-hint{
+    flex:none; display:flex; justify-content:center; gap:28px; padding:12px 0 16px;
+    color:var(--text-faint); font-size:11px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase;
+    transform:translateX(-10px);
+  }
+  .swipe-hint span{display:flex; align-items:center; gap:5px;}
+  .swipe-hint svg{width:13px; height:13px;}
+  .swipe-empty, .empty-state{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+    color:var(--text-faint); padding:40px 24px; gap:10px;
+  }
+  .empty-state svg{width:40px; height:40px; opacity:0.5; margin-bottom:6px;}
+  .empty-state h3{font-family:var(--font-display); font-weight:400; font-size:20px; color:var(--text-dim); margin:0;}
+  .empty-state p{font-size:13px; margin:0; max-width:260px; line-height:1.5;}
+
+  /* ---------- search ---------- */
+  .search-bar{
+    display:flex; align-items:center; gap:8px; background:var(--bg-card); border:1px solid var(--border-strong);
+    border-radius:12px; padding:10px 12px; margin-bottom:14px;
+  }
+  .search-bar svg{width:18px; height:18px; color:var(--text-faint); flex:none;}
+  .search-bar input{flex:1; background:none; border:none; outline:none; font-size:15px; color:var(--text);}
+  .search-bar input::placeholder{color:var(--text-faint);}
+  .result-row{
+    display:flex; gap:12px; padding:10px; border-radius:12px; align-items:center; margin-bottom:8px;
+    background:var(--bg-card); border:1px solid var(--border);
+  }
+  .result-row .poster{width:46px; height:69px; border-radius:6px; background:var(--bg-card-2); flex:none; overflow:hidden; display:flex; align-items:center; justify-content:center;}
+  .result-row .poster img{width:100%; height:100%; object-fit:cover;}
+  .result-row .poster svg{width:18px; height:18px; color:var(--text-faint);}
+  .result-row .rinfo{flex:1; min-width:0;}
+  .result-row .rinfo .rtitle{font-weight:700; font-size:14px; margin:0 0 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .result-row .rinfo .rmeta{font-size:12px; color:var(--text-faint); display:flex; gap:6px; align-items:center;}
+  .badge-mini{font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; padding:1px 6px; border-radius:4px; border:1px solid var(--border-strong); color:var(--text-dim);}
+  .badge-mini.watched{color:var(--teal); border-color:var(--teal-dim);}
+
+  /* ---------- watched list ---------- */
+  .list-header{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .list-header h2{font-family:var(--font-display); font-weight:400; font-size:22px; margin:0; letter-spacing:0.3px;}
+  .list-header .count{font-size:12px; color:var(--text-faint);}
+  select.sort-select{
+    background:var(--bg-card); border:1px solid var(--border-strong); border-radius:8px; padding:6px 10px; font-size:12px; color:var(--text-dim);
+  }
+  .stub{
+    position:relative; display:flex; gap:0; margin:0 8px 16px; background:var(--bg-card); border-radius:12px;
+    border:1px solid var(--border); overflow:visible;
+  }
+  .stub::before, .stub::after{
+    content:''; position:absolute; top:50%; transform:translateY(-50%); width:16px; height:16px; background:var(--bg); border-radius:50%; z-index:2;
+  }
+  .stub::before{left:-8px;} .stub::after{right:-8px;}
+  .stub .stub-poster{width:66px; flex:none; border-radius:12px 0 0 12px; overflow:hidden; background:var(--bg-card-2); display:flex; align-items:center; justify-content:center;}
+  .stub .stub-poster img{width:100%; height:100%; object-fit:cover; display:block;}
+  .stub .stub-poster svg{width:20px; height:20px; color:var(--text-faint);}
+  .stub .stub-divider{width:0; border-left:2px dashed var(--border-strong); margin:10px 0;}
+  .stub .stub-body{flex:1; min-width:0; padding:12px 14px;}
+  .stub .stub-body .stitle{font-weight:700; font-size:14px; margin:0 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .stub .stub-body .smeta{font-size:11px; color:var(--text-faint); margin:0 0 6px;}
+  .stub .stub-body .snote{font-size:12px; color:var(--text-dim); margin:0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+  .stars{display:flex; gap:2px;}
+  .stars svg{width:14px; height:14px;}
+  .stars .on{color:var(--gold);} .stars .off{color:var(--border-strong);}
+
+  /* ---------- popular ---------- */
+  .filter-row{display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;}
+  .filter-row select{
+    flex:1; min-width:100px; background:var(--bg-card); border:1px solid var(--border-strong); border-radius:10px;
+    padding:9px 10px; font-size:13px; color:var(--text);
+  }
+  .type-toggle{display:flex; background:var(--bg-card); border:1px solid var(--border-strong); border-radius:10px; overflow:hidden; flex:none;}
+  .type-toggle button{border:none; background:none; padding:9px 14px; font-size:12px; font-weight:700; color:var(--text-dim);}
+  .type-toggle button.active{background:var(--gold); color:#1a1408;}
+  .poster-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .poster-card{position:relative; border-radius:12px; overflow:hidden; background:var(--bg-card); border:1px solid var(--border);}
+  .poster-card .pimg{width:100%; aspect-ratio:2/3; object-fit:cover; display:block; background:var(--bg-card-2);}
+  .poster-card .noimg-sm{width:100%; aspect-ratio:2/3; display:flex; align-items:center; justify-content:center; color:var(--text-faint); font-size:11px; text-align:center; padding:8px;}
+  .poster-card .pcap{padding:8px 10px 10px;}
+  .poster-card .pcap .ptitle{font-size:12.5px; font-weight:700; margin:0 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .poster-card .pcap .pyear{font-size:11px; color:var(--text-faint);}
+  .poster-card .watched-flag{
+    position:absolute; top:8px; right:8px; background:rgba(47,169,140,0.92); color:#0c2a22; font-size:9px; font-weight:800;
+    padding:3px 7px; border-radius:5px; text-transform:uppercase; letter-spacing:0.4px;
+  }
+  .load-more{
+    grid-column:1/-1; margin-top:4px; padding:12px; border-radius:10px; border:1px solid var(--border-strong);
+    background:var(--bg-card); color:var(--text-dim); font-size:13px; font-weight:700; text-align:center;
+  }
+
+  /* ---------- settings ---------- */
+  .field-label{font-size:12px; font-weight:700; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.5px; margin:0 0 6px;}
+  .text-input, textarea.text-input{
+    width:100%; background:var(--bg-card); border:1px solid var(--border-strong); border-radius:10px; padding:11px 12px;
+    font-size:14px; color:var(--text); outline:none;
+  }
+  textarea.text-input{resize:vertical; min-height:64px; font-family:inherit;}
+  .settings-card{background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px;}
+  .settings-card h3{font-family:var(--font-display); font-weight:400; font-size:18px; margin:0 0 10px; color:var(--gold);}
+  .settings-card p.hint{font-size:12px; color:var(--text-faint); line-height:1.5; margin:8px 0 0;}
+  a.link{color:var(--gold); text-decoration:none; border-bottom:1px solid var(--gold-dim);}
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px; border-radius:10px; padding:11px 16px;
+    font-size:13px; font-weight:800; letter-spacing:0.3px; text-transform:uppercase; border:1px solid var(--border-strong);
+    background:var(--bg-card-2); color:var(--text); width:100%;
+  }
+  .btn.primary{background:var(--gold); color:#1a1408; border-color:var(--gold);}
+  .btn.danger{background:transparent; color:var(--velvet); border-color:var(--velvet-dim);}
+  .btn.ghost{background:transparent;}
+
+  /* ---------- onboarding overlay ---------- */
+  .overlay{
+    position:absolute; inset:0; background:var(--bg); z-index:100; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; padding:32px 26px; text-align:center;
+  }
+  .overlay .reel-mark{width:64px; height:64px; margin-bottom:18px; color:var(--gold);}
+  .overlay h1{font-family:var(--font-display); font-size:38px; font-weight:400; margin:0 0 6px; letter-spacing:0.5px;}
+  .overlay p{font-size:14px; color:var(--text-dim); line-height:1.6; margin:0 0 24px; max-width:320px;}
+  .overlay .text-input{margin-bottom:12px;}
+  .overlay .err{color:var(--velvet); font-size:12px; margin:-4px 0 12px; min-height:14px;}
+  .overlay .btn{max-width:320px;}
+
+  /* ---------- bottom sheet ---------- */
+  .sheet-backdrop{
+    position:absolute; inset:0; background:rgba(0,0,0,0.55); z-index:80; display:none; align-items:flex-end;
+  }
+  .sheet-backdrop.open{display:flex;}
+  .sheet{
+    width:100%; background:var(--bg-elevated); border-radius:20px 20px 0 0; padding:18px 20px calc(20px + var(--safe-b));
+    max-height:82%; overflow-y:auto; border-top:1px solid var(--border-strong);
+    transform:translateY(0); animation:sheetup 0.22s ease-out;
+  }
+  @keyframes sheetup{from{transform:translateY(100%);} to{transform:translateY(0);}}
+  .sheet .sheet-handle{width:36px; height:4px; background:var(--border-strong); border-radius:3px; margin:0 auto 14px;}
+  .sheet-head{display:flex; gap:12px; margin-bottom:16px;}
+  .sheet-head .sposter{width:70px; height:104px; border-radius:8px; flex:none; background:var(--bg-card-2); overflow:hidden; display:flex; align-items:center; justify-content:center;}
+  .sheet-head .sposter img{width:100%; height:100%; object-fit:cover;}
+  .sheet-head .sposter svg{width:22px; height:22px; color:var(--text-faint);}
+  .sheet-head .shtext h3{font-family:var(--font-display); font-weight:400; font-size:20px; margin:0 0 4px; line-height:1.1;}
+  .sheet-head .shtext .smeta2{font-size:12px; color:var(--text-faint);}
+  .sheet .rate-row{display:flex; gap:8px; margin:6px 0 16px;}
+  .sheet .rate-row button{background:none; border:none; padding:2px;}
+  .sheet .rate-row svg{width:28px; height:28px;}
+  .sheet-actions{display:flex; gap:10px; margin-top:16px;}
+  .sheet-actions .btn{flex:1;}
+  .toast{
+    position:absolute; left:50%; bottom:calc(90px + var(--safe-b)); transform:translateX(-50%);
+    background:var(--bg-card-2); border:1px solid var(--border-strong); color:var(--text); font-size:13px; font-weight:600;
+    padding:10px 16px; border-radius:30px; z-index:90; opacity:0; pointer-events:none; transition:opacity 0.25s, transform 0.25s;
+    display:flex; align-items:center; gap:8px; white-space:nowrap;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(-4px);}
+  .toast svg{width:16px; height:16px; color:var(--teal);}
+  .spin{width:22px; height:22px; border:2px solid var(--border-strong); border-top-color:var(--gold); border-radius:50%; animation:sp 0.7s linear infinite; margin:20px auto;}
+  @keyframes sp{to{transform:rotate(360deg);}}
+
+  /* ---------- swipe overlay ---------- */
+  .swipe-overlay{position:absolute;inset:0;border-radius:18px;opacity:0;pointer-events:none;}
+
+  /* ---------- library ---------- */
+  .lib-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+  .lib-chip{font-size:11px;font-weight:700;letter-spacing:0.3px;text-transform:uppercase;padding:5px 13px;border-radius:16px;border:1px solid var(--border-strong);background:transparent;color:var(--text-dim);}
+  .lib-chip.active{background:var(--gold);color:#1a1408;border-color:var(--gold);}
+  .lib-type-row{display:flex;gap:8px;margin-bottom:12px;align-items:center;}
+  .lib-type-row select{flex:1;background:var(--bg-card);border:1px solid var(--border-strong);border-radius:10px;padding:8px 10px;font-size:13px;color:var(--text);}
+
+  /* ---------- ongoing toggle ---------- */
+  .ongoing-btn{font-size:9px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;padding:2px 7px;border-radius:4px;border:1px solid;background:transparent;cursor:pointer;vertical-align:middle;margin-left:5px;line-height:1.6;}
+  .ongoing-btn.on{color:var(--teal);border-color:var(--teal);}
+  .ongoing-btn.off{color:var(--text-faint);border-color:var(--border-strong);}
+
+  /* ---------- tv progress ---------- */
+  .tv-progress{margin-top:6px;}
+  .tv-progress-label{font-size:11px;color:var(--text-faint);margin:0 0 3px;}
+  .tv-progress-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
+  .tv-progress-fill{height:100%;background:var(--teal);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<svg style="display:none">
+  <symbol id="i-film" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 5h16v14H4z"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 9h16M4 15h16M9 5v4M9 15v4M15 5v4M15 15v4"/></symbol>
+  <symbol id="i-bookmark" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 3h12v18l-6-4.5L6 21z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M21 21l-4.3-4.3"/></symbol>
+  <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M15.5 8.5l-2 5-5 2 2-5z"/></symbol>
+  <symbol id="i-trending" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M22 7l-9 9-4-4-7 7M22 7h-6M22 7v6"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M19 12a7 7 0 00-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 00-2-1.2L14 3h-4l-.5 2.6a7 7 0 00-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 005 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1c.6.5 1.3.9 2 1.2L10 21h4l.5-2.6c.7-.3 1.4-.7 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" d="M12 3l2.6 5.9 6.4.6-4.8 4.3 1.4 6.3L12 17l-5.6 3.1 1.4-6.3-4.8-4.3 6.4-.6z"/></symbol>
+  <symbol id="i-star-fill" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3l2.6 5.9 6.4.6-4.8 4.3 1.4 6.3L12 17l-5.6 3.1 1.4-6.3-4.8-4.3 6.4-.6z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></symbol>
+  <symbol id="i-clapper" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M3 9l1.5-4.5L19 6 17.5 10.5z"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M3 9h18v11H3z"/><path fill="none" stroke="currentColor" stroke-width="1.6" d="M7 5.6l3 3M12 4.6l3 3"/></symbol>
+  <symbol id="i-arrow-left" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+</svg>
+
+<div id="app">
+
+  <div class="sprocket"></div>
+
+  <div class="topbar">
+    <h1 id="topTitle">Reel <small>swipe</small></h1>
+    <div class="chip-row" id="topChips"></div>
+  </div>
+
+  <div class="screens">
+
+    <!-- SWIPE -->
+    <section class="screen active" id="screen-swipe">
+      <div class="swipe-wrap">
+        <div class="swipe-stage" id="swipeStage"></div>
+        <div class="swipe-hint">
+          <span style="color:var(--gold)">← Queue</span>
+          <span style="color:var(--text-faint)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="width:13px;height:13px;vertical-align:middle"><path d="M12 19V5M5 12l7-7 7 7"/></svg> Ignore</span>
+          <span style="color:var(--teal)">Seen →</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEARCH -->
+    <section class="screen" id="screen-search">
+      <div class="screen-pad">
+        <div class="search-bar">
+          <svg><use href="#i-search"/></svg>
+          <input type="text" id="searchInput" placeholder="Search a movie or TV show">
+        </div>
+        <div id="searchResults"></div>
+      </div>
+    </section>
+
+    <!-- LIBRARY -->
+    <section class="screen" id="screen-library">
+      <div class="screen-pad">
+        <div class="list-header">
+          <div>
+            <h2>Library</h2>
+            <div class="count" id="libCount">0 titles</div>
+          </div>
+          <select class="sort-select" id="sortSelect">
+            <option value="recent">Recently added</option>
+            <option value="rating">My rating</option>
+            <option value="tmdb">TMDB rating</option>
+            <option value="title">Title A-Z</option>
+          </select>
+        </div>
+        <div class="lib-chips" id="libStatusChips"></div>
+        <div class="lib-type-row">
+          <div class="type-toggle" id="libTypeToggle">
+            <button data-lt="all" class="active">All</button>
+            <button data-lt="movie">Movies</button>
+            <button data-lt="tv">TV</button>
+          </div>
+          <select id="libGenreSelect"><option value="">All genres</option></select>
+          <select id="libYearSelect"><option value="">Any year</option></select>
+        </div>
+        <div id="libList"></div>
+      </div>
+    </section>
+
+    <!-- POPULAR -->
+    <section class="screen" id="screen-popular">
+      <div class="screen-pad">
+        <div class="filter-row">
+          <div class="type-toggle" id="popularTypeToggle">
+            <button data-type="all" class="active">All</button>
+            <button data-type="movie">Movies</button>
+            <button data-type="tv">TV</button>
+          </div>
+        </div>
+        <div class="poster-grid" id="popularGrid"></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="screen" id="screen-settings">
+      <div class="screen-pad">
+        <div class="settings-card">
+          <h3>Sample data mode</h3>
+          <p class="hint" style="margin:0">This build runs on a small hardcoded set of titles instead of a live TMDB connection, so it works from a static host with no key or setup. Swipe, search, discover, and your library all run on that fixed list — trailer links and season-refresh need a live connection, so they stay quiet here.</p>
+          <div style="display:none">
+            <input type="text" class="text-input" id="apiKeyInput" placeholder="Paste your TMDB API key">
+            <button class="btn primary" id="saveKeyBtn">Save key</button>
+          </div>
+        </div>
+        <div class="settings-card">
+          <h3>Data</h3>
+          <p class="hint" style="margin:0 0 12px">Your entire library — seen, watch queue, and ignored — lives in this app's storage on this device.</p>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <button class="btn ghost" id="exportBtn" style="flex:1">Export library</button>
+            <button class="btn ghost" id="importBtn" style="flex:1">Import library</button>
+          </div>
+          <input type="file" id="importFileInput" accept=".json" style="display:none">
+          <button class="btn danger" id="clearDataBtn">Clear library history</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="bottomnav">
+    <button class="navbtn active" data-tab="swipe"><svg><use href="#i-film"/></svg><span>Swipe</span></button>
+    <button class="navbtn" data-tab="library"><svg><use href="#i-bookmark"/></svg><span>Library</span></button>
+    <button class="navbtn search-main" data-tab="search"><svg><use href="#i-search"/></svg><span>Search</span></button>
+    <button class="navbtn" data-tab="popular"><svg><use href="#i-trending"/></svg><span>Popular</span></button>
+    <button class="navbtn" data-tab="settings"><svg><use href="#i-settings"/></svg><span>Settings</span></button>
+  </div>
+
+  <div class="sheet-backdrop" id="sheetBackdrop">
+    <div class="sheet" id="sheetBody"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="overlay" id="onboarding" style="display:none">
+    <svg class="reel-mark" viewBox="0 0 24 24"><use href="#i-clapper"/></svg>
+    <h1>Reel</h1>
+    <p>Swipe through what's trending, keep a record of everything you've watched, and rate it your way. Reel runs on The Movie Database — paste in a free API key to get started.</p>
+    <input type="text" class="text-input" id="onboardKeyInput" placeholder="Paste your TMDB API key">
+    <div class="err" id="onboardErr"></div>
+    <button class="btn primary" id="onboardBtn">Continue</button>
+    <p class="hint" style="margin-top:14px">No key yet? <a class="link" href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">Get one free at themoviedb.org</a></p>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var IMG_BASE = "https://image.tmdb.org/t/p/w500";
+  var IMG_BASE_SM = "https://image.tmdb.org/t/p/w185";
+  var TMDB_BASE = "https://api.themoviedb.org/3";
+
+  var state = {
+    apiKey: null,
+    readToken: null,
+    tab: "swipe",
+    watched: [],
+    ignored: [],
+    watchQueue: [],
+    swipeQueue: [],
+    swipePage: 1,
+    swipeMediaFilter: "all",
+    swipeGenre: "",
+    swipeYear: "",
+    genresMovie: {},
+    genresTv: {},
+    popularType: "all",
+    popularPage: 1,
+    popularResults: [],
+    popularTotalPages: 1,
+    searchTimer: null,
+    dragging: false,
+    libStatus: "all",
+    libType: "all",
+    libYear: "",
+    libGenre: ""
+  };
+
+  function $(id){ return document.getElementById(id); }
+  function el(html){ var d = document.createElement("div"); d.innerHTML = html.trim(); return d.firstChild; }
+  function escapeHtml(s){
+    return (s || "").replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  /* ---------------- storage ---------------- */
+  function safeParse(str, fallback){
+    try { return JSON.parse(str); } catch(e){ return fallback; }
+  }
+  function lsGet(key){ return safeParse(localStorage.getItem("reel:" + key), null); }
+  function lsSet(key, val){ try { localStorage.setItem("reel:" + key, JSON.stringify(val)); } catch(e){} }
+
+  function loadAll(){
+    var settings = lsGet("settings") || {};
+    state.apiKey = settings.apiKey || null;
+    state.readToken = settings.readToken || null;
+    state.watched   = lsGet("watched")    || [];
+    state.ignored   = lsGet("ignored")    || [];
+    state.watchQueue = lsGet("watchQueue") || [];
+    return Promise.resolve();
+  }
+  function saveSettings(){ lsSet("settings", {apiKey: state.apiKey, readToken: state.readToken}); return Promise.resolve(); }
+  function saveWatched(){ lsSet("watched", state.watched); }
+  function saveIgnored(){ lsSet("ignored", state.ignored); }
+  function saveWatchQueue(){ lsSet("watchQueue", state.watchQueue); }
+
+  /* ---------------- demo dataset ----------------
+     This build ships with a small hardcoded set of titles instead of a
+     live TMDB connection, so it can run entirely from a static host with
+     no API key, no CORS setup, and no secrets in the repo. Every screen
+     below (swipe, search, discover/popular, library, watch queue) reads
+     from this fixed list through the same tmdb() call sites the live app
+     uses -- only the data source underneath changed. */
+  var DEMO_ITEMS = [{"adult":false,"backdrop_path":"/o0NsbcIvsllg6CJX0FBFY8wWbsn.jpg","id":30984,"name":"Bleach","original_name":"BLEACH","overview":"For as long as he can remember, Ichigo Kurosaki has been able to see ghosts. But when he meets Rukia, a Soul Reaper who battles evil spirits known as Hollows, he finds his life is changed forever. Now, with a newfound wealth of spiritual energy, Ichigo discovers his true calling: to protect the living and the dead from evil.","poster_path":"/5iVUUnE2tgBPypACYNobCKHagfV.jpg","media_type":"tv","original_language":"ja","genre_ids":[10759,16,10765],"popularity":96.1975,"first_air_date":"2004-10-05","vote_average":8.4,"vote_count":2159,"origin_country":["JP"]},{"adult":false,"backdrop_path":"/n6vVs6z8obNbExdD3QHTr4Utu1Z.jpg","id":76479,"name":"The Boys","original_name":"The Boys","overview":"A group of vigilantes known informally as “The Boys” set out to take down corrupt superheroes with no more than blue-collar grit and a willingness to fight dirty.","poster_path":"/in1R2dDc421JxsoRWaIIAqVI2KE.jpg","media_type":"tv","original_language":"en","genre_ids":[10765,10759],"popularity":198.6034,"first_air_date":"2019-07-25","vote_average":8.4,"vote_count":13055,"origin_country":["US"]},{"adult":false,"backdrop_path":"/8NIvQY34tNPc4txNeym2zEYk9ek.jpg","id":106449,"name":"A Record of a Mortal's Journey to Immortality","original_name":"凡人修仙传","overview":"A poor and ordinary boy from a village joins a minor sect in Jiang Hu and becomes an Unofficial Disciple by chance. How will Han Li, a commoner by birth, establish a foothold for himself in his sect? With his mediocre aptitude, he must successfully traverse the treacherous path of cultivation and avoid the notice of those who may do him harm. This is a story of an ordinary mortal who, against all odds, clashes with devilish demons and ancient celestials in order to find his own path towards immortality.","poster_path":"/u1VRjvvCIVwb1MUhoxSAUimhoKZ.jpg","media_type":"tv","original_language":"zh","genre_ids":[16,10759,10765],"popularity":79.3809,"first_air_date":"2020-07-25","vote_average":8.4,"vote_count":81,"origin_country":["CN"]},{"adult":false,"backdrop_path":"/goTFoBxSyLybVvlGa2Ke9uTchdF.jpg","id":285993,"name":"BLACK TORCH","original_name":"BLACK TORCH","overview":"Jiro Azuma is no average high schooler. A descendant of ninjas and trained in the ancient warrior art of the shinobi, Jiro is also able to talk with animals. After a mysterious encounter with an injured cat named Rago, Jiro discovers the feline is actually the legendary Black Star of Doom! Joined by the Bureau of Espionage, they fight off swarms of mononoke lying in wait to exploit Rago’s powers.","poster_path":"/iWTBUy7tyJVnzSLFuV6os5G0J04.jpg","media_type":"tv","original_language":"ja","genre_ids":[16,9648,10759,10765],"popularity":62.5996,"first_air_date":"2026-07-04","vote_average":7.0,"vote_count":1,"origin_country":["JP"]},{"adult":false,"backdrop_path":"/9itOpkXcVrJDlGvRDMaLjUdTwrs.jpg","id":219971,"name":"The Agency","original_name":"The Agency","overview":"Covert CIA agent Martian is ordered to abandon his undercover life and return to London Station. When the love he left behind unexpectedly reappears, their romance reignites, pitting his career, his real identity and his mission against his heart while hurling them both into a deadly game of international intrigue and espionage.","poster_path":"/zoLZbm5gtTQurjMxp5VOdHIpMmz.jpg","media_type":"tv","original_language":"en","genre_ids":[18,9648],"popularity":75.7694,"first_air_date":"2024-12-01","vote_average":7.124,"vote_count":241,"origin_country":["US"]},{"adult":false,"backdrop_path":"/oBJ6dZ6A1tY1O94RmWnJkkQVbLz.jpg","id":286360,"name":"Notes from the Last Row","original_name":"맨 끝줄 소년","overview":"A literature professor discovers a student's talent and offers him writing lessons — but as he sinks into the story, their sessions spiral into chaos.","poster_path":"/paRFCxAJRZOypfgnzYLo6KH5jjO.jpg","media_type":"tv","original_language":"ko","genre_ids":[9648,18],"popularity":97.139,"first_air_date":"2026-06-26","vote_average":7.891,"vote_count":23,"origin_country":["KR"]},{"adult":false,"backdrop_path":"/s3tHm62ohyb0I5vSnPrpczCBtSX.jpg","id":1304313,"title":"Lee Cronin's The Mummy","original_title":"Lee Cronin's The Mummy","overview":"The young daughter of a journalist disappears into the desert without a trace—eight years later, the broken family is shocked when she is returned to them, as what should be a joyful reunion turns into a living nightmare.","poster_path":"/1q308iixueCU4pFtSYugNOevtNx.jpg","media_type":"movie","original_language":"en","genre_ids":[27,9648],"popularity":128.251,"release_date":"2026-04-15","vote_average":8.011,"vote_count":2104},{"adult":false,"backdrop_path":"/v5v4BXD0AT1gMcKr2pAJCt4IFZu.jpg","id":285479,"name":"A Record of a Mortal's Journey to Immortality","original_name":"凡人修仙传（分季）","overview":"","poster_path":"/sZJssMWcejxx2k8i0JPIr4t2tMY.jpg","media_type":"tv","original_language":"zh","genre_ids":[16,10759,18],"popularity":20.2926,"first_air_date":"2020-07-25","vote_average":9.4,"vote_count":7,"origin_country":["CN"]},{"adult":false,"backdrop_path":"/m0TiLZ79RR19Zz0AZruQSBeH39x.jpg","id":90521,"name":"Love Island USA","original_name":"Love Island USA","overview":"The matchmaking begins as a group of single \"Islanders\" come together in a stunning villa on a beautiful tropical island, ready to embark on a summer of dating, romance, and ultimately, relationships. Every few days the Islanders pair up and those who are not coupled are at risk of being dumped from the island. Islanders are on the lookout for romance, but the road to love doesn't always run smoothly.","poster_path":"/kU2y21cls8WargMaX7KI47URMjD.jpg","media_type":"tv","original_language":"en","genre_ids":[10764],"popularity":51.82,"first_air_date":"2019-07-09","vote_average":7.043,"vote_count":176,"origin_country":["US"]},{"adult":false,"backdrop_path":"/1TD4RxJsHkFbkJtWgoVRzQf9STd.jpg","id":203744,"name":"Sugar","original_name":"Sugar","overview":"John Sugar is a dashing private eye navigating the dark corners of sunny LA. Though he sees only the good in humanity, Sugar is haunted by a secret too dangerous to expose.","poster_path":"/tLmwLYiI7EpPbhgmdeivNGY0xw7.jpg","media_type":"tv","original_language":"en","genre_ids":[18,9648],"popularity":46.305,"first_air_date":"2024-04-04","vote_average":7.14,"vote_count":322,"origin_country":["US"]},{"adult":false,"backdrop_path":"/lthkKBLe1rX6iThgVFg22O02sJw.jpg","id":95479,"name":"JUJUTSU KAISEN","original_name":"呪術廻戦","overview":"Yuji Itadori is a boy with tremendous physical strength, though he lives a completely ordinary high school life. One day, to save a classmate who has been attacked by curses, he eats the finger of Ryomen Sukuna, taking the curse into his own soul. From then on, he shares one body with Ryomen Sukuna. Guided by the most powerful of sorcerers, Satoru Gojo, Itadori is admitted to Tokyo Jujutsu High School, an organization that fights the curses... and thus begins the heroic tale of a boy who became a curse to exorcise a curse, a life from which he could never turn back.","poster_path":"/fHpKWq9ayzSk8nSwqRuaAUemRKh.jpg","media_type":"tv","original_language":"ja","genre_ids":[16,10759,10765],"popularity":103.7334,"first_air_date":"2020-10-03","vote_average":8.578,"vote_count":4516,"origin_country":["JP"]},{"adult":false,"backdrop_path":"/eJOy7YWAHgOS3V477sdTsq4v9jp.jpg","id":82684,"name":"That Time I Got Reincarnated as a Slime","original_name":"転生したらスライムだった件","overview":"Corporate worker Mikami Satoru is stabbed by a random killer, and is reborn to an alternate world. But he turns out to be reborn a slime! Thrown into this new world with the name Rimuru, he begins his quest to create a world that’s welcoming to all races.","poster_path":"/pzujcdPAoH361NObVrtbA7zACE7.jpg","media_type":"tv","original_language":"ja","genre_ids":[10759,16,10765,35],"popularity":38.9054,"first_air_date":"2018-10-02","vote_average":8.431,"vote_count":929,"origin_country":["JP"]},{"adult":false,"backdrop_path":"/ydWwc4NOeDb7t8pcR3tf6n12rLB.jpg","id":298994,"name":"The Villager of Level 999","original_name":"LV999の村人","overview":"In Earthclear, everyone is born into a fixed role, and villagers are the weakest of all. Most never rise above Level 5—except Koji Kagami, who is Level...999?! On a monster hunt, he meets Alice, the Demon King's daughter, and discovers they share an impossible dream: coexistence between humans and demons. In a world destined for conflict, they charge into battle to defy fate and shatter the rules.","poster_path":"/pXnQuQyt7LUb62ZF9J6vDAcymIW.jpg","media_type":"tv","original_language":"ja","genre_ids":[16,10759,10765],"popularity":40.1386,"first_air_date":"2026-07-02","vote_average":9.0,"vote_count":4,"origin_country":["JP"]},{"adult":false,"backdrop_path":"/iw1knpC8Jg5davMn2MPxNVxBF8N.jpg","id":323411,"name":"The Vampire Lestat","original_name":"The Vampire Lestat","overview":"The Vampire Lestat goes on tour while being haunted by \"muses\" from his past. As the band's popularity grows, so does Lestat's influence over vampires & humans alike, leaving others to contend with Lestat's power in the face of the Great Conversion.","poster_path":"/gZcmNUcDDR1nR7lmroOJTCrhrhK.jpg","media_type":"tv","original_language":"en","genre_ids":[18,10765],"popularity":31.1039,"first_air_date":"2026-06-07","vote_average":6.967,"vote_count":30,"origin_country":["US"]},{"adult":false,"backdrop_path":"/6t2FvBr9DS8MOq0m5FAwPBCdAW5.jpg","id":220102,"name":"Spider-Noir","original_name":"Spider-Noir","overview":"Ben Reilly, an aging and down on his luck private investigator in 1930s New York, is forced to grapple with his past life as the city's one and only superhero.","poster_path":"/oD8WSVqz84ZRfelkr7JPeJwR9Iv.jpg","media_type":"tv","original_language":"en","genre_ids":[18,9648,80],"popularity":54.6894,"first_air_date":"2026-05-25","vote_average":8.469,"vote_count":656,"origin_country":["US"]},{"adult":false,"backdrop_path":"/4lj7MZtcIDI2FmZXGkFWh0sNCsq.jpg","id":1228710,"title":"The Mandalorian and Grogu","original_title":"The Mandalorian and Grogu","overview":"The evil Empire has fallen, and Imperial warlords remain scattered throughout the galaxy. As the fledgling New Republic works to protect everything the Rebellion fought for, they have enlisted the help of legendary Mandalorian bounty hunter Din Djarin and his young apprentice Grogu.","poster_path":"/5Vi8dSauVwH1HOsiZceDMbRr1Ca.jpg","media_type":"movie","original_language":"en","genre_ids":[28,12,878],"popularity":124.3541,"release_date":"2026-05-20","vote_average":6.7,"vote_count":557},{"adult":false,"backdrop_path":"/vb7Cr6zQkCFji2pAgsoBFRzcaLA.jpg","id":285143,"name":"Road to Success","original_name":"灿如繁星","overview":"When Lin Wanxing returns to her hometown and takes a job at a local high school, she’s unexpectedly tasked with reviving its long-disbanded soccer team. With help from her mysterious tenant, former coach Wang Fa, they work to rebuild the team, guide the students toward their dreams, and face the shadows of their own pasts along the way.","poster_path":"/b5nQBfeAQA9lEINrYFWXBh8PENr.jpg","media_type":"tv","original_language":"zh","genre_ids":[18],"popularity":15.6307,"first_air_date":"2026-07-05","vote_average":8.0,"vote_count":2,"origin_country":["CN"]},{"adult":false,"backdrop_path":"/lN13BPAEnc5iXmoxxBQHOZ1ScfZ.jpg","id":86031,"name":"Dr. STONE","original_name":"Dr.STONE","overview":"One fateful day, all of humanity was petrified by a blinding flash of light. After several millennia, high schooler Taiju awakens and finds himself lost in a world of statues. However, he’s not alone! His science-loving friend Senku’s been up and running for a few months and he's got a grand plan in mind—to kickstart civilization with the power of science!","poster_path":"/xbZQ3fDl0y5mt0ARwfeyrgQ4JTw.jpg","media_type":"tv","original_language":"ja","genre_ids":[16,10759,35,10765],"popularity":17.8917,"first_air_date":"2019-07-05","vote_average":8.542,"vote_count":1721,"origin_country":["JP"]},{"adult":false,"backdrop_path":"/hUkFUI5wKYAihLOks7RVU0TfzUS.jpg","id":1659389,"title":"ONE PIECE HEROINES","original_title":"ONE PIECE HEROINES","overview":"After buying a pair of shoes that end up hurting her feet, Nami returns to the shop feeling dissatisfied. There, she meets Lebno, the designer, who tells her, \"I'll make you a brand-new pair from scratch—but only if you’ll be my model.\" The shoes are crafted by the artisan Miucha, leading to an unexpected and stylish encounter.","poster_path":"/mrONQ5gkWIVSf3hp5n6w7qoK2oN.jpg","media_type":"movie","original_language":"ja","genre_ids":[16,28,35],"popularity":9.5058,"release_date":"2026-07-05","vote_average":0.0,"vote_count":0},{"adult":false,"backdrop_path":"/shXdGFZIEaSmiOkVW2BeEaPihuA.jpg","id":223564,"name":"The 100 Girlfriends Who Really, Really, Really, Really, REALLY Love You","original_name":"君のことが大大大大大好きな100人の彼女","overview":"Rentaro Aijo was rejected 100 times in middle school. He visits a shrine and prays for better luck in high school. The God of Love appears and promises that he'll soon meet 100 people he's destined to date. But there's a catch—once destiny introduces someone to him, the two must happily love each other. If they don't, they'll die. What will befall Rentaro and his 100 girlfriends in high school?","poster_path":"/kBiPU7I7TEJdDXu8tHgVrgL5zAU.jpg","media_type":"tv","original_language":"ja","genre_ids":[16,35],"popularity":30.4219,"first_air_date":"2023-10-08","vote_average":8.125,"vote_count":192,"origin_country":["JP"]}];
+  var DEMO_GENRES_MOVIE = {"12":"Adventure","16":"Animation","27":"Horror","28":"Action","35":"Comedy","878":"Science Fiction","9648":"Mystery"};
+  var DEMO_GENRES_TV = {"16":"Animation","18":"Drama","35":"Comedy","80":"Crime","9648":"Mystery","10759":"Action & Adventure","10764":"Reality","10765":"Sci-Fi & Fantasy"};
+
+  function mockList(results){ return { page: 1, total_pages: 1, total_results: results.length, results: results }; }
+
+  function mockTmdb(path, params){
+    params = params || {};
+    var m;
+    if ((m = path.match(/^\/trending\/(all|movie|tv)\/week$/))){
+      var tf = m[1];
+      var list = tf === "all" ? DEMO_ITEMS.slice() : DEMO_ITEMS.filter(function(i){ return i.media_type === tf; });
+      return Promise.resolve(mockList(list));
+    }
+    if ((m = path.match(/^\/discover\/(movie|tv)$/))){
+      var dt = m[1];
+      var dlist = DEMO_ITEMS.filter(function(i){ return i.media_type === dt; });
+      if (params.with_genres){
+        var gid = parseInt(params.with_genres, 10);
+        dlist = dlist.filter(function(i){ return (i.genre_ids || []).indexOf(gid) !== -1; });
+      }
+      var yr = params.primary_release_year || params.first_air_date_year;
+      if (yr){ dlist = dlist.filter(function(i){ return (i.release_date || i.first_air_date || "").slice(0, 4) === String(yr); }); }
+      return Promise.resolve(mockList(dlist));
+    }
+    if (path === "/movie/popular" || path === "/tv/popular"){
+      var pt = path.split("/")[1];
+      return Promise.resolve(mockList(DEMO_ITEMS.filter(function(i){ return i.media_type === pt; })));
+    }
+    if (path === "/search/multi"){
+      var q = (params.query || "").trim().toLowerCase();
+      var results = !q ? [] : DEMO_ITEMS.filter(function(i){
+        var t = (i.title || i.name || "").toLowerCase();
+        return t.indexOf(q) !== -1;
+      });
+      return Promise.resolve(mockList(results));
+    }
+    if (/\/videos$/.test(path)){
+      return Promise.resolve({ results: [] });
+    }
+    if (path === "/genre/movie/list"){
+      return Promise.resolve({ genres: Object.keys(DEMO_GENRES_MOVIE).map(function(id){ return { id: parseInt(id, 10), name: DEMO_GENRES_MOVIE[id] }; }) });
+    }
+    if (path === "/genre/tv/list"){
+      return Promise.resolve({ genres: Object.keys(DEMO_GENRES_TV).map(function(id){ return { id: parseInt(id, 10), name: DEMO_GENRES_TV[id] }; }) });
+    }
+    return Promise.resolve({});
+  }
+
+  /* ---------------- tmdb (mocked -- no network calls in this demo build) ---------------- */
+  function tmdb(path, params){
+    return mockTmdb(path, params || {});
+  }
+
+  function normalize(item, mediaType){
+    return {
+      id: item.id,
+      mediaType: mediaType,
+      title: item.title || item.name || "Untitled",
+      poster: item.poster_path || null,
+      year: (item.release_date || item.first_air_date || "").slice(0,4) || "—",
+      overview: item.overview || "",
+      voteAverage: item.vote_average || 0,
+      genreIds: item.genre_ids || []
+    };
+  }
+  function isSeen(id, mt){ return state.watched.some(function(w){ return w.id===id && w.mediaType===mt; }); }
+  function isIgnored(id, mt){ return state.ignored.some(function(i){ return i.id===id && i.mediaType===mt; }); }
+  function isInQueue(id, mt){ return state.watchQueue.some(function(q){ return q.id===id && q.mediaType===mt; }); }
+  function isProcessed(id, mt){ return isSeen(id,mt) || isIgnored(id,mt) || isInQueue(id,mt); }
+  function isWatched(id, mt){ return isSeen(id, mt); }
+  function findWatched(id, mt){ return state.watched.find(function(w){ return w.id===id && w.mediaType===mt; }); }
+
+  /* ---------------- toast ---------------- */
+  var toastTimer = null;
+  function toast(msg, iconSvg){
+    var t = $("toast");
+    t.innerHTML = (iconSvg || '<svg><use href="#i-check"/></svg>') + "<span>" + escapeHtml(msg) + "</span>";
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove("show"); }, 1800);
+  }
+
+  /* ---------------- tabs ---------------- */
+  var topTitles = { swipe:"swipe", library:"library", search:"search", popular:"popular", settings:"settings" };
+
+  function setTab(tab){
+    state.tab = tab;
+    document.querySelectorAll(".screen").forEach(function(s){ s.classList.remove("active"); });
+    $("screen-" + tab).classList.add("active");
+    document.querySelectorAll(".navbtn").forEach(function(b){
+      b.classList.toggle("active", b.getAttribute("data-tab") === tab);
+    });
+    $("topTitle").innerHTML = "Reel <small>" + topTitles[tab] + "</small>";
+    $("topChips").innerHTML = "";
+    if (tab === "swipe"){
+      renderSwipeTopChips();
+      ensureGenres().then(function(){
+        if (state.swipeQueue.length === 0) fillSwipeQueue();
+        else renderSwipeStack();
+      });
+    } else if (tab === "library"){
+      renderLibrary();
+    } else if (tab === "popular"){
+      if (state.popularResults.length === 0) loadPopular(true);
+      else renderPopularGrid();
+    }
+  }
+
+  document.querySelectorAll(".navbtn").forEach(function(b){
+    b.addEventListener("click", function(){ setTab(b.getAttribute("data-tab")); });
+  });
+
+  /* ---------------- swipe top chips (media filter) ---------------- */
+  function buildSwipeFilterHtml(){
+    var genres = state.swipeMediaFilter === "tv" ? state.genresTv : state.genresMovie;
+    var genreOpts = '<option value="">All genres</option>' + Object.keys(genres).map(function(id){
+      return '<option value="'+id+'"'+(state.swipeGenre===id?" selected":"")+'>'+escapeHtml(genres[id])+'</option>';
+    }).join("");
+    var curY = new Date().getFullYear();
+    var yearOpts = '<option value="">Any year</option>';
+    for (var y = curY; y >= 1970; y--)
+      yearOpts += '<option value="'+y+'"'+(state.swipeYear===String(y)?" selected":"")+'>'+y+'</option>';
+    return '<select class="text-input" id="swipeGenreSel" style="flex:1;font-size:12px;padding:5px 8px">'+genreOpts+'</select>'+
+           '<select class="text-input" id="swipeYearSel" style="flex:none;width:96px;font-size:12px;padding:5px 8px">'+yearOpts+'</select>';
+  }
+
+  function wireSwipeFilterSelects(){
+    var gSel = $("swipeGenreSel");
+    if (gSel) gSel.addEventListener("change", function(){
+      state.swipeGenre = this.value;
+      state.swipeQueue = []; state.swipePage = 1;
+      renderSwipeStack(); fillSwipeQueue();
+    });
+    var ySel = $("swipeYearSel");
+    if (ySel) ySel.addEventListener("change", function(){
+      state.swipeYear = this.value;
+      state.swipeQueue = []; state.swipePage = 1;
+      renderSwipeStack(); fillSwipeQueue();
+    });
+  }
+
+  function renderSwipeTopChips(){
+    var opts = [["all","All"],["movie","Movies"],["tv","TV"]];
+    var needsFilter = state.swipeMediaFilter !== "all";
+
+    /* First render — build the skeleton once */
+    if (!$("swipeChipBtns")){
+      $("topChips").innerHTML =
+        '<div id="swipeChipBtns" style="display:flex;gap:6px"></div>'+
+        '<div class="swipe-filter-row" id="swipeFilterRow"></div>';
+    }
+
+    /* Always refresh the chip buttons */
+    $("swipeChipBtns").innerHTML = opts.map(function(o){
+      return '<button class="chip'+(state.swipeMediaFilter===o[0]?" active":"")+'" data-mf="'+o[0]+'">'+o[1]+'</button>';
+    }).join("");
+
+    $("swipeChipBtns").querySelectorAll(".chip").forEach(function(c){
+      c.addEventListener("click", function(){
+        var mf = c.getAttribute("data-mf");
+        if (mf === state.swipeMediaFilter) return;
+        state.swipeMediaFilter = mf;
+        state.swipeGenre = "";
+        state.swipeYear = "";
+        state.swipeQueue = [];
+        state.swipePage = 1;
+        renderSwipeTopChips();
+        renderSwipeStack();
+        fillSwipeQueue();
+      });
+    });
+
+    /* Animate filter row in / out */
+    var filterRow = $("swipeFilterRow");
+    if (needsFilter){
+      filterRow.innerHTML = buildSwipeFilterHtml();
+      wireSwipeFilterSelects();
+      /* Double RAF so the browser paints max-height:0 first, then transitions to open */
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){
+          filterRow.classList.add("open");
+        });
+      });
+    } else {
+      if (filterRow.classList.contains("open")){
+        filterRow.classList.remove("open");
+        filterRow.addEventListener("transitionend", function handler(){
+          filterRow.removeEventListener("transitionend", handler);
+          filterRow.innerHTML = "";
+        });
+      } else {
+        filterRow.innerHTML = "";
+      }
+    }
+  }
+
+  /* ---------------- swipe stack ---------------- */
+  function fillSwipeQueue(depth){
+    depth = depth || 0;
+    if (state.swipeQueue.length >= 4 || depth > 6){ renderSwipeStack(); return Promise.resolve(); }
+
+    var useDiscover = state.swipeMediaFilter !== "all" && (state.swipeGenre || state.swipeYear);
+    var endpoint, params;
+    if (useDiscover){
+      var mt = state.swipeMediaFilter;
+      endpoint = "/discover/" + mt;
+      params = { page: state.swipePage, sort_by: "popularity.desc" };
+      if (state.swipeGenre) params.with_genres = state.swipeGenre;
+      if (state.swipeYear){
+        if (mt === "movie") params.primary_release_year = state.swipeYear;
+        else params.first_air_date_year = state.swipeYear;
+      }
+    } else {
+      endpoint = state.swipeMediaFilter === "all" ? "/trending/all/week" : "/trending/" + state.swipeMediaFilter + "/week";
+      params = { page: state.swipePage };
+    }
+
+    return tmdb(endpoint, params).then(function(data){
+      state.swipePage++;
+      (data.results || []).forEach(function(item){
+        var mt = item.media_type || state.swipeMediaFilter;
+        if (mt !== "movie" && mt !== "tv") return;
+        if (!item.poster_path) return;
+        if (isProcessed(item.id, mt)) return;
+        if (state.swipeQueue.some(function(q){ return q.id === item.id && q.mediaType === mt; })) return;
+        state.swipeQueue.push(normalize(item, mt));
+      });
+      renderSwipeStack();
+      if (state.swipeQueue.length < 4 && data.page < Math.min(data.total_pages, 20)){
+        return fillSwipeQueue(depth + 1);
+      }
+    }).catch(function(e){
+      renderSwipeStack();
+      if (e.status === 401) toast("Check your API key in Settings", '<svg><use href="#i-x"/></svg>');
+    });
+  }
+
+  function renderSwipeStack(){
+    var stage = $("swipeStage");
+    stage.innerHTML = "";
+    if (state.swipeQueue.length === 0){
+      stage.appendChild(el(
+        '<div class="swipe-empty">' +
+          '<svg width="40" height="40" style="color:var(--text-faint);margin-bottom:8px"><use href="#i-film"/></svg>' +
+          '<h3 style="font-family:var(--font-display);font-weight:400;font-size:20px;color:var(--text-dim);margin:0 0 6px">Loading the reel…</h3>' +
+          '<p style="font-size:13px;max-width:240px">Finding trending titles you haven\'t rated yet.</p>' +
+        "</div>"
+      ));
+      return;
+    }
+    var shown = state.swipeQueue.slice(0, 3);
+    for (var idxFromTop = shown.length - 1; idxFromTop >= 0; idxFromTop--){
+      var i = idxFromTop;
+      var card = buildSwipeCard(shown[idxFromTop]);
+      card.style.transform = "translateY(" + (i * 8) + "px) scale(" + (1 - i * 0.035) + ")";
+      card.style.zIndex = String(10 - i);
+      card.style.opacity = i > 1 ? "0" : "1";
+      stage.appendChild(card);
+    }
+    var top = stage.lastChild;
+    if (top) attachDrag(top, state.swipeQueue[0]);
+  }
+
+  function buildSwipeCard(item){
+    var posterHtml = item.poster
+      ? '<img src="' + IMG_BASE + item.poster + '" alt="">'
+      : '<div class="noimg">' + escapeHtml(item.title) + "</div>";
+    var typeLabel = item.mediaType === "tv" ? "TV series" : "Movie";
+
+    var genreMap = item.mediaType === "tv" ? state.genresTv : state.genresMovie;
+    var genreNames = (item.genreIds || []).slice(0, 3).map(function(id){ return genreMap[id]; }).filter(Boolean);
+    var genrePillsHtml = genreNames.length
+      ? '<div class="genre-pills">' + genreNames.map(function(g){ return '<span class="genre-pill">' + escapeHtml(g) + '</span>'; }).join("") + '</div>'
+      : "";
+
+    var card = el(
+      '<div class="swipe-card">' +
+        posterHtml +
+        '<div class="fade"></div>' +
+        '<div class="swipe-overlay"></div>' +
+        '<div class="stamp seen">SEEN</div>' +
+        '<div class="stamp notseen">WATCH QUEUE</div>' +
+        '<div class="stamp skip-up">IGNORE</div>' +
+        '<div class="info">' +
+          '<span class="type-badge">' + typeLabel + "</span>" +
+          "<h2>" + escapeHtml(item.title) + "</h2>" +
+          '<div class="meta"><span>' + escapeHtml(item.year) + "</span>" +
+          (item.voteAverage ? '<span class="rating">★ ' + item.voteAverage.toFixed(1) + "</span>" : "") +
+          "</div>" +
+          genrePillsHtml +
+          '<p class="overview">' + escapeHtml(item.overview || "No description available.") + "</p>" +
+          '<button class="trailer-btn">▶ Trailer</button>' +
+        "</div>" +
+      "</div>"
+    );
+
+    card.querySelector(".trailer-btn").addEventListener("pointerdown", function(e){ e.stopPropagation(); });
+    card.querySelector(".trailer-btn").addEventListener("click", function(e){
+      e.stopPropagation();
+      var btn = this;
+      btn.textContent = "Loading…";
+      btn.disabled = true;
+      tmdb("/" + item.mediaType + "/" + item.id + "/videos").then(function(data){
+        var vid = (data.results || []).find(function(v){ return v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"); });
+        if (vid){
+          window.open("https://www.youtube.com/watch?v=" + vid.key, "_blank", "noopener");
+          btn.textContent = "▶ Trailer";
+        } else {
+          toast("No trailer found");
+          btn.textContent = "▶ Trailer";
+        }
+        btn.disabled = false;
+      }).catch(function(){
+        toast("Couldn't load trailer");
+        btn.textContent = "▶ Trailer";
+        btn.disabled = false;
+      });
+    });
+
+    return card;
+  }
+
+  function attachDrag(card, item){
+    var startX = 0, startY = 0, dx = 0, dy = 0, active = false;
+    var stampSeen    = card.querySelector(".stamp.seen");
+    var stampNotSeen = card.querySelector(".stamp.notseen");
+    var stampSkipUp  = card.querySelector(".stamp.skip-up");
+    var overlay      = card.querySelector(".swipe-overlay");
+
+    function clearStamps(){
+      stampSeen.style.opacity = 0;
+      stampNotSeen.style.opacity = 0;
+      stampSkipUp.style.opacity = 0;
+      overlay.style.opacity = 0;
+    }
+    function pointerDown(e){
+      active = true;
+      state.dragging = true;
+      startX = e.clientX; startY = e.clientY;
+      e.preventDefault();
+      card.setPointerCapture && e.pointerId != null && card.setPointerCapture(e.pointerId);
+    }
+    function pointerMove(e){
+      if (!active) return;
+      e.preventDefault();
+      dx = e.clientX - startX; dy = e.clientY - startY;
+      var absDx = Math.abs(dx), absDy = Math.abs(dy);
+      var isUp = absDy > absDx * 1.1 && dy < -15;
+      var rot = isUp ? 0 : dx / 16;
+      var visDy = isUp ? dy : Math.min(dy, 50); // clamp downward drag
+      card.style.transform = "translate(" + dx + "px," + visDy + "px) rotate(" + rot + "deg)";
+      if (isUp){
+        var p = Math.min(absDy / 80, 1);
+        stampSkipUp.style.opacity = p;
+        stampSeen.style.opacity = 0; stampNotSeen.style.opacity = 0;
+        overlay.style.background = "rgba(104,101,112,0.5)";
+        overlay.style.opacity = p * 0.7;
+      } else if (dx > 15){
+        var p = Math.min(dx / 80, 1);
+        stampSeen.style.opacity = p;
+        stampNotSeen.style.opacity = 0; stampSkipUp.style.opacity = 0;
+        overlay.style.background = "rgba(47,169,140,0.45)";
+        overlay.style.opacity = p * 0.7;
+      } else if (dx < -15){
+        var p = Math.min(-dx / 80, 1);
+        stampNotSeen.style.opacity = p;
+        stampSeen.style.opacity = 0; stampSkipUp.style.opacity = 0;
+        overlay.style.background = "rgba(232,179,77,0.45)";
+        overlay.style.opacity = p * 0.7;
+      } else {
+        clearStamps();
+      }
+    }
+    function pointerUp(){
+      if (!active) return;
+      active = false;
+      state.dragging = false;
+      var threshold = 90;
+      var absDx = Math.abs(dx), absDy = Math.abs(dy);
+      if (absDy > absDx * 1.1 && dy < -threshold){
+        commitSwipe(card, item, "up");
+      } else if (dx > threshold){
+        commitSwipe(card, item, "right");
+      } else if (dx < -threshold){
+        commitSwipe(card, item, "left");
+      } else {
+        card.style.transition = "transform 0.25s ease";
+        card.style.transform = "translate(0,0) rotate(0deg)";
+        clearStamps();
+        setTimeout(function(){ card.style.transition = ""; }, 260);
+      }
+      dx = 0; dy = 0;
+    }
+    card.addEventListener("pointerdown", pointerDown);
+    window.addEventListener("pointermove", pointerMove);
+    window.addEventListener("pointerup", pointerUp);
+    card._cleanup = function(){
+      window.removeEventListener("pointermove", pointerMove);
+      window.removeEventListener("pointerup", pointerUp);
+    };
+  }
+
+  function commitSwipe(card, item, dir){
+    card.style.transition = "transform 0.35s ease, opacity 0.35s ease";
+    var flyX = dir === "right" ? 600 : dir === "left" ? -600 : 0;
+    var flyY = dir === "up" ? -700 : -30;
+    var rot  = dir === "right" ? 20 : dir === "left" ? -20 : 0;
+    card.style.transform = "translate(" + flyX + "px," + flyY + "px) rotate(" + rot + "deg)";
+    card.style.opacity = "0";
+    if (card._cleanup) card._cleanup();
+    setTimeout(function(){
+      state.swipeQueue = state.swipeQueue.filter(function(q){ return !(q.id === item.id && q.mediaType === item.mediaType); });
+      if (dir === "right"){
+        openQuickRateSheet(item);
+      } else if (dir === "up"){
+        state.ignored.push({id:item.id, mediaType:item.mediaType, title:item.title, poster:item.poster, year:item.year, genreIds:item.genreIds||[], voteAverage:item.voteAverage||0, dateAdded:Date.now()});
+        saveIgnored();
+        toast("Ignored — won't show again");
+      } else if (dir === "left"){
+        addToWatchQueue(item);
+      }
+      renderSwipeStack();
+      fillSwipeQueue();
+    }, 260);
+  }
+
+
+  function addToWatchQueue(item, doFetch){
+    if (isInQueue(item.id, item.mediaType)) return;
+    var record = {id:item.id, mediaType:item.mediaType, title:item.title, poster:item.poster, year:item.year, genreIds:item.genreIds||[], voteAverage:item.voteAverage||0, dateAdded:Date.now(), ongoing:false, totalSeasons:null, totalEpisodes:null, seasons:null, progressSeason:0, progressEpisode:0};
+    state.watchQueue.push(record);
+    saveWatchQueue();
+    toast("Added to Watch Queue");
+    if (item.mediaType==="tv" && doFetch!==false && state.apiKey){
+      tmdb("/tv/"+item.id).then(function(data){
+        record.totalSeasons  = data.number_of_seasons || 0;
+        record.totalEpisodes = data.number_of_episodes || 0;
+        record.ongoing = data.status === "Returning Series";
+        record.seasons = (data.seasons||[]).filter(function(s){return s.season_number>0;}).map(function(s){return {n:s.season_number,eps:s.episode_count};});
+        saveWatchQueue();
+      }).catch(function(){});
+    }
+  }
+
+  /* ---------------- quick rate sheet (after right swipe) ---------------- */
+  function openQuickRateSheet(item){
+    var rating = 0;
+    var record = {
+      id: item.id, mediaType: item.mediaType, title: item.title, poster: item.poster,
+      year: item.year, genreIds: item.genreIds || [], voteAverage: item.voteAverage || 0, rating: 0, note: "", dateAdded: Date.now(),
+      ongoing: item.ongoing || false,
+      totalSeasons: item.totalSeasons || null, totalEpisodes: item.totalEpisodes || null,
+      seasons: item.seasons || null,
+      progressSeason: item.progressSeason || 0, progressEpisode: item.progressEpisode || 0
+    };
+    state.watched.push(record);
+    saveWatched();
+    toast("Marked as seen");
+    if (item.mediaType === "tv" && state.apiKey){
+      tmdb("/tv/"+item.id).then(function(data){
+        record.totalSeasons  = data.number_of_seasons || 0;
+        record.totalEpisodes = data.number_of_episodes || 0;
+        record.ongoing = data.status === "Returning Series";
+        saveWatched();
+      }).catch(function(){});
+    }
+
+    var posterHtml = item.poster
+      ? '<img src="' + IMG_BASE_SM + item.poster + '" alt="">'
+      : '<svg><use href="#i-film"/></svg>';
+
+    var body = $("sheetBody");
+    body.innerHTML =
+      '<div class="sheet-handle"></div>' +
+      '<div class="sheet-head">' +
+        '<div class="sposter">' + posterHtml + "</div>" +
+        '<div class="shtext"><h3>' + escapeHtml(item.title) + "</h3>" +
+        '<div class="smeta2">' + escapeHtml(item.year) + " · Marked as seen</div></div>" +
+      "</div>" +
+      '<p class="field-label">Rate it (optional)</p>' +
+      '<div class="rate-row" id="quickStars"></div>' +
+      '<p class="field-label">Note (optional)</p>' +
+      '<textarea class="text-input" id="quickNote" placeholder="Any thoughts worth remembering?"></textarea>' +
+      '<div class="sheet-actions" style="flex-wrap:wrap;gap:8px">' +
+        '<button class="btn primary" id="quickSave">Done</button>' +
+        (item.mediaType === "tv" && state.apiKey ? '<button class="btn ghost" id="quickCheckSeasons" style="flex:none;font-size:11px">Check for new seasons</button>' : '') +
+      '</div>';
+
+    renderStarPicker($("quickStars"), 0, function(r){ rating = r; record.rating = r; });
+    $("quickSave").addEventListener("click", function(){
+      record.rating = rating;
+      record.note = $("quickNote").value.trim();
+      saveWatched();
+      closeSheet();
+      if (state.tab === "library") renderLibrary();
+    });
+
+    var checkBtn = $("quickCheckSeasons");
+    if (checkBtn){
+      checkBtn.addEventListener("click", function(){
+        record.rating = rating;
+        record.note = $("quickNote").value.trim();
+        saveWatched();
+        checkBtn.textContent = "Checking…";
+        checkBtn.disabled = true;
+        checkForNewSeasons(record, function(found){
+          if (!found){ checkBtn.textContent = "Check for new seasons"; checkBtn.disabled = false; }
+        });
+      });
+    }
+
+    openSheetBackdrop();
+  }
+
+  function checkForNewSeasons(record, callback){
+    if (!state.apiKey) return;
+    tmdb("/tv/" + record.id).then(function(data){
+      var newS  = data.number_of_seasons  || 0;
+      var newE  = data.number_of_episodes || 0;
+      var newList = (data.seasons||[]).filter(function(s){return s.season_number>0;}).map(function(s){return {n:s.season_number,eps:s.episode_count};});
+      var added = newS - (record.totalSeasons || 0);
+      var hasNew = newS > (record.totalSeasons||0) || newE > (record.totalEpisodes||0);
+      if (hasNew){
+        /* remove from watched, push to watch queue keeping progress at what was last seen */
+        state.watched = state.watched.filter(function(w){ return !(w.id===record.id && w.mediaType===record.mediaType); });
+        saveWatched();
+        state.watchQueue.push({
+          id:record.id, mediaType:record.mediaType, title:record.title,
+          poster:record.poster, year:record.year, dateAdded:Date.now(),
+          ongoing:true,
+          totalSeasons:newS, totalEpisodes:newE, seasons:newList,
+          progressSeason:record.progressSeason || record.totalSeasons || 0,
+          progressEpisode:record.progressEpisode || 0
+        });
+        saveWatchQueue();
+        closeSheet();
+        toast(added > 0 ? added+" new season"+(added>1?"s":"")+" found!" : "New episodes found!");
+        if (state.tab==="library") renderLibrary();
+        if (callback) callback(true);
+      } else {
+        toast("No new seasons yet");
+        if (callback) callback(false);
+      }
+    }).catch(function(){
+      toast("Couldn't reach TMDB");
+      if (callback) callback(false);
+    });
+  }
+
+  function renderStarPicker(container, initial, onChange){
+    var val = initial || 0;
+    function draw(){
+      container.innerHTML = "";
+      for (var i = 1; i <= 5; i++){
+        (function(i){
+          var btn = document.createElement("button");
+          btn.innerHTML = '<svg' + (i <= val ? ' style="color:var(--gold)"' : ' style="color:var(--text-faint)"') + '><use href="#' + (i <= val ? "i-star-fill" : "i-star") + '"/></svg>';
+          btn.addEventListener("click", function(){
+            val = (val === i) ? 0 : i;
+            draw();
+            onChange(val);
+          });
+          container.appendChild(btn);
+        })(i);
+      }
+    }
+    draw();
+  }
+
+  /* ---------------- sheet plumbing ---------------- */
+  function openSheetBackdrop(){
+    $("sheetBackdrop").classList.add("open");
+  }
+  function closeSheet(){
+    $("sheetBackdrop").classList.remove("open");
+    $("sheetBody").innerHTML = "";
+  }
+  $("sheetBackdrop").addEventListener("click", function(e){
+    if (e.target === $("sheetBackdrop")){
+      closeSheet();
+      if (state.tab === "library") renderLibrary();
+    }
+  });
+
+  /* ---------------- add / edit sheet (search + discover + watched-list edit) ---------------- */
+  function openDetailSheet(item, mode){
+    var existing = findWatched(item.id, item.mediaType);
+    var inQueue  = isInQueue(item.id, item.mediaType);
+    var rating = existing ? existing.rating : 0;
+    var posterHtml = item.poster
+      ? '<img src="' + IMG_BASE_SM + item.poster + '" alt="">'
+      : '<svg><use href="#i-film"/></svg>';
+    var typeLabel = item.mediaType === "tv" ? "TV series" : "Movie";
+
+    var body = $("sheetBody");
+    body.innerHTML =
+      '<div class="sheet-handle"></div>' +
+      '<div class="sheet-head">' +
+        '<div class="sposter">' + posterHtml + "</div>" +
+        '<div class="shtext"><h3>' + escapeHtml(item.title) + "</h3>" +
+        '<div class="smeta2">' + escapeHtml(item.year) + " · " + typeLabel +
+          (item.voteAverage ? ' · <span style="color:var(--gold);font-weight:700">★ ' + item.voteAverage.toFixed(1) + "</span>" : "") +
+        "</div>" +
+        '<div class="genre-pills" id="detailGenres" style="margin:6px 0 0;display:flex;flex-wrap:wrap;gap:5px"></div>' +
+        '<button class="btn ghost" id="trailerBtn" style="margin-top:8px;font-size:11px;padding:5px 14px;letter-spacing:0.5px">▶ Trailer</button>' +
+        "</div>" +
+      "</div>" +
+      (item.overview ? '<p style="font-size:13px;color:var(--text-dim);line-height:1.5;margin:12px 0 16px">' + escapeHtml(item.overview) + "</p>" : "") +
+      '<p class="field-label">Your rating</p>' +
+      '<div class="rate-row" id="detailStars"></div>' +
+      '<p class="field-label">Note</p>' +
+      '<textarea class="text-input" id="detailNote" placeholder="Any thoughts worth remembering?">' + escapeHtml(existing ? existing.note : "") + "</textarea>" +
+      '<div class="sheet-actions" style="flex-wrap:wrap;gap:8px">' +
+        (existing
+          ? '<button class="btn danger" id="detailRemove">Remove</button><button class="btn primary" id="detailSave">Update</button>' +
+            (item.mediaType==="tv" && state.apiKey ? '<button class="btn ghost" id="detailCheckSeasons" style="flex:none;font-size:11px">Check for new seasons</button>' : '')
+          : '<button class="btn ghost" id="detailQueueBtn" style="flex:1">' + (inQueue ? "✓ In Watch Queue" : "+ Watch Queue") + "</button>" +
+            '<button class="btn primary" id="detailSave" style="flex:1">Add to Watched</button>') +
+      "</div>";
+
+    ensureGenres().then(function(){
+      var genreMap = item.mediaType === "tv" ? state.genresTv : state.genresMovie;
+      var names = (item.genreIds || []).slice(0, 4).map(function(id){ return genreMap[id]; }).filter(Boolean);
+      var el2 = $("detailGenres");
+      if (el2 && names.length){
+        el2.innerHTML = names.map(function(g){ return '<span class="genre-pill">' + escapeHtml(g) + "</span>"; }).join("");
+      }
+    });
+
+    renderStarPicker($("detailStars"), rating, function(r){ rating = r; });
+
+    $("trailerBtn").addEventListener("click", function(){
+      var btn = this;
+      btn.textContent = "Loading…"; btn.disabled = true;
+      tmdb("/" + item.mediaType + "/" + item.id + "/videos").then(function(data){
+        var vid = (data.results || []).find(function(v){ return v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"); });
+        if (vid){ window.open("https://www.youtube.com/watch?v=" + vid.key, "_blank", "noopener"); }
+        else { toast("No trailer found"); }
+        btn.textContent = "▶ Trailer"; btn.disabled = false;
+      }).catch(function(){ toast("Couldn't load trailer"); btn.textContent = "▶ Trailer"; btn.disabled = false; });
+    });
+
+    var detailQueueBtn = $("detailQueueBtn");
+    if (detailQueueBtn){
+      if (inQueue){
+        detailQueueBtn.disabled = true;
+      } else {
+        detailQueueBtn.addEventListener("click", function(){
+          addToWatchQueue(item, true);
+          closeSheet();
+          if (state.tab === "popular") renderPopularGrid();
+          if (state.tab === "search") runSearch($("searchInput").value);
+        });
+      }
+    }
+
+    $("detailSave").addEventListener("click", function(){
+      var note = $("detailNote").value.trim();
+      if (existing){
+        existing.rating = rating;
+        existing.note = note;
+      } else {
+        state.watched.push({
+          id: item.id, mediaType: item.mediaType, title: item.title, poster: item.poster,
+          year: item.year, genreIds: item.genreIds||[], voteAverage: item.voteAverage||0,
+          rating: rating, note: note, dateAdded: Date.now()
+        });
+        state.ignored   = state.ignored.filter(function(i){ return !(i.id===item.id && i.mediaType===item.mediaType); });
+        state.watchQueue = state.watchQueue.filter(function(q){ return !(q.id===item.id && q.mediaType===item.mediaType); });
+        saveIgnored(); saveWatchQueue();
+      }
+      saveWatched();
+      closeSheet();
+      toast(existing ? "Updated" : "Marked as seen");
+      if (state.tab === "library") renderLibrary();
+      if (state.tab === "search") runSearch($("searchInput").value);
+      if (state.tab === "popular") renderPopularGrid();
+    });
+
+    if (existing){
+      $("detailRemove").addEventListener("click", function(){
+        state.watched = state.watched.filter(function(w){ return !(w.id === item.id && w.mediaType === item.mediaType); });
+        saveWatched();
+        closeSheet();
+        toast("Removed from watched");
+        if (state.tab === "library") renderLibrary();
+        if (state.tab === "search") runSearch($("searchInput").value);
+        if (state.tab === "popular") renderPopularGrid();
+      });
+
+      var detailCheckBtn = $("detailCheckSeasons");
+      if (detailCheckBtn){
+        detailCheckBtn.addEventListener("click", function(){
+          existing.rating = rating;
+          existing.note = $("detailNote").value.trim();
+          saveWatched();
+          detailCheckBtn.textContent = "Checking…";
+          detailCheckBtn.disabled = true;
+          checkForNewSeasons(existing, function(found){
+            if (!found){ detailCheckBtn.textContent = "Check for new seasons"; detailCheckBtn.disabled = false; }
+          });
+        });
+      }
+    }
+    openSheetBackdrop();
+  }
+
+  /* ---------------- search ---------------- */
+  $("searchInput").addEventListener("input", function(){
+    var q = this.value;
+    clearTimeout(state.searchTimer);
+    state.searchTimer = setTimeout(function(){ runSearch(q); }, 400);
+  });
+
+  function runSearch(query){
+    var container = $("searchResults");
+    query = (query || "").trim();
+    if (!query){ container.innerHTML = ""; return; }
+    container.innerHTML = '<div class="spin"></div>';
+    tmdb("/search/multi", { query: query, page: 1, include_adult: "false" }).then(function(data){
+      var results = (data.results || []).filter(function(r){
+        return (r.media_type === "movie" || r.media_type === "tv") && r.poster_path;
+      }).slice(0, 20);
+      if (results.length === 0){
+        container.innerHTML = emptyStateHtml("No results", "Try a different title or spelling.");
+        return;
+      }
+      container.innerHTML = "";
+      results.forEach(function(r){
+        var item = normalize(r, r.media_type);
+        var watchedFlag = isWatched(item.id, item.mediaType);
+        var row = el(
+          '<div class="result-row">' +
+            '<div class="poster">' + (item.poster ? '<img src="' + IMG_BASE_SM + item.poster + '" alt="">' : '<svg><use href="#i-film"/></svg>') + "</div>" +
+            '<div class="rinfo">' +
+              '<p class="rtitle">' + escapeHtml(item.title) + "</p>" +
+              '<div class="rmeta"><span class="badge-mini">' + (item.mediaType === "tv" ? "TV" : "Movie") + "</span><span>" + escapeHtml(item.year) + "</span>" +
+              (watchedFlag ? '<span class="badge-mini watched">Watched</span>' : "") +
+              "</div>" +
+            "</div>" +
+          "</div>"
+        );
+        row.addEventListener("click", function(){ openDetailSheet(item, "add"); });
+        container.appendChild(row);
+      });
+    }).catch(function(e){
+      container.innerHTML = emptyStateHtml("Search failed", e.status === 401 ? "Check your API key in Settings." : "Something went wrong. Try again.");
+    });
+  }
+
+  function emptyStateHtml(title, body){
+    return '<div class="empty-state"><svg><use href="#i-search"/></svg><h3>' + escapeHtml(title) + "</h3><p>" + escapeHtml(body) + "</p></div>";
+  }
+
+  /* ---------------- library ---------------- */
+  $("sortSelect").addEventListener("change", function(){ if (state.tab==="library") renderLibrary(); });
+  $("libYearSelect").addEventListener("change", function(){ state.libYear = this.value; renderLibrary(); });
+  $("libGenreSelect").addEventListener("change", function(){ state.libGenre = this.value; renderLibrary(); });
+  $("libTypeToggle").addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-lt]");
+    if (!btn) return;
+    state.libType = btn.getAttribute("data-lt");
+    state.libGenre = "";
+    renderLibrary();
+  });
+
+  function getMergedLibrary(){
+    var all = [];
+    state.watched.forEach(function(w){ all.push(Object.assign({},w,{_status:"seen"})); });
+    state.watchQueue.forEach(function(q){ all.push(Object.assign({},q,{_status:"queue"})); });
+    state.ignored.forEach(function(i){ all.push(Object.assign({},i,{_status:"ignored"})); });
+    return all;
+  }
+
+  function renderLibrary(){
+    /* status chips */
+    var statuses = [["all","All"],["seen","Seen"],["queue","Watch Queue"],["ignored","Ignored"]];
+    $("libStatusChips").innerHTML = statuses.map(function(s){
+      return '<button class="lib-chip'+(state.libStatus===s[0]?" active":"")+'" data-ls="'+s[0]+'">'+s[1]+'</button>';
+    }).join("");
+    $("libStatusChips").querySelectorAll(".lib-chip").forEach(function(c){
+      c.addEventListener("click", function(){ state.libStatus = c.getAttribute("data-ls"); renderLibrary(); });
+    });
+
+    /* type toggle highlight */
+    document.querySelectorAll("#libTypeToggle button").forEach(function(b){
+      b.classList.toggle("active", b.getAttribute("data-lt") === state.libType);
+    });
+
+    var allItems = getMergedLibrary();
+
+    /* pre-filter by status + type (used to build dropdowns from relevant items) */
+    var preFiltered = allItems.filter(function(item){
+      if (state.libStatus!=="all" && item._status!==state.libStatus) return false;
+      if (state.libType!=="all" && item.mediaType!==state.libType) return false;
+      return true;
+    });
+
+    /* year dropdown — build from pre-filtered items */
+    var years = [];
+    preFiltered.forEach(function(i){ if (i.year && years.indexOf(i.year)===-1) years.push(i.year); });
+    years.sort(function(a,b){ return b-a; });
+    var ysel = $("libYearSelect");
+    var curY = state.libYear;
+    ysel.innerHTML = '<option value="">Any year</option>' + years.map(function(y){
+      return '<option value="'+y+'"'+(curY===y?" selected":"")+'>'+y+'</option>';
+    }).join("");
+    ysel.value = curY;
+
+    /* genre dropdown — build from pre-filtered items */
+    var genreIdsSeen = {}, genreEntries = [];
+    preFiltered.forEach(function(item){
+      var map = item.mediaType==="tv" ? state.genresTv : state.genresMovie;
+      (item.genreIds||[]).forEach(function(id){
+        if (!genreIdsSeen[id] && map[id]){ genreIdsSeen[id] = true; genreEntries.push({id:String(id),name:map[id]}); }
+      });
+    });
+    genreEntries.sort(function(a,b){ return a.name.localeCompare(b.name); });
+    var gsel = $("libGenreSelect");
+    gsel.innerHTML = '<option value="">All genres</option>' + genreEntries.map(function(g){
+      return '<option value="'+g.id+'"'+(state.libGenre===g.id?" selected":"")+'>'+escapeHtml(g.name)+'</option>';
+    }).join("");
+    gsel.value = state.libGenre;
+
+    /* final filter */
+    var filtered = preFiltered.filter(function(item){
+      if (state.libYear && item.year!==state.libYear) return false;
+      if (state.libGenre && !(item.genreIds||[]).some(function(id){ return String(id)===state.libGenre; })) return false;
+      return true;
+    });
+
+    /* sort */
+    var sort = $("sortSelect").value;
+    if (sort==="recent") filtered.sort(function(a,b){ return b.dateAdded-a.dateAdded; });
+    else if (sort==="rating") filtered.sort(function(a,b){ return (b.rating||0)-(a.rating||0); });
+    else if (sort==="tmdb") filtered.sort(function(a,b){ return (b.voteAverage||0)-(a.voteAverage||0); });
+    else if (sort==="title") filtered.sort(function(a,b){ return a.title.localeCompare(b.title); });
+
+    $("libCount").textContent = filtered.length+(filtered.length===1?" title":" titles");
+
+    var container = $("libList");
+    if (filtered.length===0){
+      container.innerHTML = '<div class="empty-state"><svg><use href="#i-bookmark"/></svg><h3>Nothing here</h3><p>Try a different filter, or start swiping.</p></div>';
+      return;
+    }
+    container.innerHTML = "";
+    filtered.forEach(function(item){ container.appendChild(buildLibStub(item)); });
+  }
+
+  function buildLibStub(item){
+    var statusColor = {seen:"var(--teal)",queue:"var(--gold)",ignored:"var(--text-faint)"}[item._status];
+    var statusLabel = {seen:"SEEN",queue:"QUEUE",ignored:"IGNORED"}[item._status];
+    var typeLabel = item.mediaType==="tv"?"TV":"Movie";
+
+    /* stars (seen only) */
+    var starsHtml = "";
+    if (item._status==="seen" && item.rating){
+      var sv="";
+      for (var si=1;si<=5;si++) sv+='<svg class="'+(si<=item.rating?"on":"off")+'"><use href="#'+(si<=item.rating?"i-star-fill":"i-star")+'"/></svg>';
+      starsHtml='<div class="stars" style="margin-top:4px">'+sv+'</div>';
+    }
+
+    /* ongoing toggle (TV shows not ignored) */
+    var ongoingHtml = "";
+    if (item.mediaType==="tv" && item._status!=="ignored"){
+      ongoingHtml = '<button class="ongoing-btn '+(item.ongoing?"on":"off")+'">'+(item.ongoing?"●":"○")+' ONGOING</button>';
+    }
+
+    /* TV progress bar (queue + seen TV shows with progress data) */
+    var progressHtml = "";
+    if (item.mediaType==="tv" && (item._status==="queue" || (item._status==="seen" && item.totalSeasons && item.progressSeason))){
+      var ps=item.progressSeason||0, pe=item.progressEpisode||0;
+      var ts=item.totalSeasons||0;
+      var label = ts ? (ps>0 ? "S"+ps+(pe>0?":E"+pe:"")+" of "+ts+" seasons" : "Not started") : "Loading…";
+      var pct = 0;
+      if (ts > 0 && ps > 0){
+        if (item.seasons && item.seasons.length){
+          var totalEps=0, doneEps=0;
+          item.seasons.forEach(function(s){totalEps+=s.eps; if(s.n<ps) doneEps+=s.eps; else if(s.n===ps) doneEps+=pe;});
+          pct = totalEps>0 ? Math.round(doneEps/totalEps*100) : Math.round(ps/ts*100);
+        } else {
+          pct = Math.round(ps/ts*100);
+        }
+      }
+      progressHtml='<div class="tv-progress"><p class="tv-progress-label">'+label+(item.totalEpisodes&&!item.seasons?" · "+item.totalEpisodes+" eps total":"")+'</p><div class="tv-progress-bar"><div class="tv-progress-fill" style="width:'+pct+'%"></div></div>'+(ts?'<p class="tv-progress-label" style="margin-top:3px;text-align:right">'+pct+'%</p>':'')+'</div>';
+    }
+
+    /* genre pills */
+    var genreMap = item.mediaType==="tv" ? state.genresTv : state.genresMovie;
+    var genreNames = (item.genreIds||[]).slice(0,3).map(function(id){ return genreMap[id]; }).filter(Boolean);
+    var genrePillsHtml = genreNames.length
+      ? '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px">'
+        + genreNames.map(function(g){ return '<span style="font-size:9px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:var(--text-faint);background:rgba(255,255,255,0.06);border-radius:4px;padding:2px 6px">'+escapeHtml(g)+'</span>'; }).join("")
+        + '</div>'
+      : "";
+
+    var stub = el(
+      '<div class="stub">'+
+        '<div class="stub-poster">'+(item.poster?'<img src="'+IMG_BASE_SM+item.poster+'" alt="">':'<svg><use href="#i-film"/></svg>')+'</div>'+
+        '<div class="stub-divider"></div>'+
+        '<div class="stub-body">'+
+          '<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:2px">'+
+            '<p class="stitle" style="margin:0;flex:1;min-width:0">'+escapeHtml(item.title)+'</p>'+
+            '<span style="flex:none;font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px;border:1px solid;color:'+statusColor+';border-color:'+statusColor+'">'+statusLabel+'</span>'+
+          '</div>'+
+          '<p class="smeta" style="margin-bottom:0">'+escapeHtml(item.year)+' · '+typeLabel+(item.voteAverage?'<span style="color:var(--gold);font-weight:700;margin-left:8px">★ '+item.voteAverage.toFixed(1)+'</span>':'')+ongoingHtml+'</p>'+
+          genrePillsHtml+
+          starsHtml+progressHtml+
+          (item.note?'<p class="snote" style="margin-top:4px">'+escapeHtml(item.note)+'</p>':'')+
+        '</div>'+
+      '</div>'
+    );
+
+    /* ongoing toggle handler */
+    var togBtn = stub.querySelector(".ongoing-btn");
+    if (togBtn){
+      togBtn.addEventListener("click", function(e){
+        e.stopPropagation();
+        var newVal = !item.ongoing;
+        if (item._status==="seen"){
+          var r=state.watched.find(function(w){return w.id===item.id&&w.mediaType===item.mediaType;});
+          if (r){ r.ongoing=newVal; saveWatched(); }
+        } else {
+          var r=state.watchQueue.find(function(q){return q.id===item.id&&q.mediaType===item.mediaType;});
+          if (r){ r.ongoing=newVal; saveWatchQueue(); }
+        }
+        renderLibrary();
+      });
+    }
+
+    stub.addEventListener("click", function(e){
+      if (e.target.closest(".ongoing-btn")) return;
+      openLibrarySheet(item);
+    });
+    return stub;
+  }
+
+  function buildEpisodeOptions(season, currentEp){
+    if (!season || !season.eps) return '<option value="0">—</option>';
+    var opts = '<option value="0">—</option>';
+    for (var e = 1; e <= season.eps; e++)
+      opts += '<option value="'+e+'"'+(currentEp===e?" selected":"")+'>Episode '+e+'</option>';
+    return opts;
+  }
+
+  function rebuildEpSel(item, sn){
+    var container = $("tvEpContainer");
+    if (!container) return;
+    if (!item.seasons || sn === 0){
+      container.innerHTML = '<select class="text-input" id="tvEpSel"><option value="0">—</option></select>';
+    } else {
+      var cs = item.seasons.find(function(s){ return s.n === sn; });
+      container.innerHTML = '<select class="text-input" id="tvEpSel">'+buildEpisodeOptions(cs, item.progressEpisode||0)+'</select>';
+    }
+    var newEp = $("tvEpSel");
+    if (newEp) newEp.addEventListener("change", function(){
+      var sSel = $("tvSeasonSel");
+      saveProgress(item, sSel ? parseInt(sSel.value)||0 : sn, parseInt(this.value)||0);
+    });
+  }
+
+  function openLibrarySheet(item){
+    if (item._status==="seen"){
+      openDetailSheet({id:item.id,mediaType:item.mediaType,title:item.title,poster:item.poster,year:item.year,overview:""}, "edit");
+      return;
+    }
+    var posterHtml = item.poster ? '<img src="'+IMG_BASE_SM+item.poster+'" alt="">' : '<svg><use href="#i-film"/></svg>';
+    var typeLabel  = item.mediaType==="tv" ? "TV series" : "Movie";
+
+    /* TV progress section — always render both selectors so they're in the DOM from the start */
+    var progressHtml = "";
+    if (item._status==="queue" && item.mediaType==="tv"){
+      var curSn = item.progressSeason || 0;
+      if (item.seasons && item.seasons.length){
+        var sOpts = '<option value="0">Not started</option>';
+        item.seasons.forEach(function(s){
+          sOpts += '<option value="'+s.n+'"'+(curSn===s.n?" selected":"")+'>Season '+s.n+' ('+s.eps+' eps)</option>';
+        });
+        var curS = item.seasons.find(function(s){ return s.n === curSn; });
+        progressHtml =
+          '<p class="field-label" style="margin-top:14px">Season</p>'+
+          '<select class="text-input" id="tvSeasonSel" style="margin-bottom:10px">'+sOpts+'</select>'+
+          '<p class="field-label">Episode</p>'+
+          '<div id="tvEpContainer"><select class="text-input" id="tvEpSel">'+buildEpisodeOptions(curS, item.progressEpisode||0)+'</select></div>';
+      } else if (item.totalSeasons){
+        var sOpts2 = '<option value="0">Not started</option>';
+        for (var sn2=1; sn2<=item.totalSeasons; sn2++)
+          sOpts2 += '<option value="'+sn2+'"'+(curSn===sn2?" selected":"")+'>Season '+sn2+'</option>';
+        progressHtml =
+          '<p class="field-label" style="margin-top:14px">Season</p>'+
+          '<select class="text-input" id="tvSeasonSel" style="margin-bottom:10px">'+sOpts2+'</select>'+
+          '<p class="field-label">Episode</p>'+
+          '<div id="tvEpContainer"><select class="text-input" id="tvEpSel"><option value="0">—</option></select></div>';
+      }
+    }
+
+    var hasTvProgress = item._status==="queue" && item.mediaType==="tv" && (item.seasons || item.totalSeasons);
+    var actHtml = item._status==="queue"
+      ? '<div style="display:flex;gap:8px;width:100%">'+
+          '<button class="btn danger" id="libRemoveBtn">Remove</button>'+
+          (hasTvProgress ? '<button class="btn ghost" id="libSaveBtn">Save</button>' : '')+
+        '</div>'+
+        '<button class="btn primary" id="libMarkSeenBtn" style="width:100%">Mark as Seen</button>'
+      : '<button class="btn danger" id="libRemoveBtn">Remove</button>'+
+        '<button class="btn ghost" id="libMoveQueueBtn" style="flex:none">+ Queue</button>'+
+        '<button class="btn primary" id="libMarkSeenBtn">Mark as Seen</button>';
+
+    var body = $("sheetBody");
+    body.innerHTML =
+      '<div class="sheet-handle"></div>'+
+      '<div class="sheet-head"><div class="sposter">'+posterHtml+'</div>'+
+        '<div class="shtext"><h3>'+escapeHtml(item.title)+'</h3>'+
+        '<div class="smeta2">'+escapeHtml(item.year)+' · '+typeLabel+'</div></div></div>'+
+      progressHtml+
+      '<div class="sheet-actions" style="gap:8px;flex-wrap:wrap;margin-top:14px">'+actHtml+'</div>';
+
+    /* Season selector — rebuilds episode list on change (no save yet) */
+    var sSel = $("tvSeasonSel");
+    if (sSel){
+      sSel.addEventListener("change", function(){
+        var sn = parseInt(this.value)||0;
+        item.progressEpisode = 0;
+        rebuildEpSel(item, sn);
+      });
+    }
+
+    /* Save button — reads current selectors, saves, auto-moves to seen at 100% */
+    var saveBtn = $("libSaveBtn");
+    if (saveBtn){
+      saveBtn.addEventListener("click", function(){
+        var sn = sSel ? parseInt(sSel.value)||0 : item.progressSeason||0;
+        var ep = $("tvEpSel") ? parseInt($("tvEpSel").value)||0 : item.progressEpisode||0;
+        saveProgress(item, sn, ep);
+        if (isProgressComplete(item)){
+          state.watchQueue = state.watchQueue.filter(function(q){ return !(q.id===item.id && q.mediaType===item.mediaType); });
+          saveWatchQueue();
+          closeSheet();
+          openQuickRateSheet(item);
+        } else {
+          closeSheet();
+          if (state.tab==="library") renderLibrary();
+        }
+      });
+    }
+
+    var removeBtn = $("libRemoveBtn");
+    removeBtn.addEventListener("click", function(){
+      if (item._status==="queue"){ state.watchQueue=state.watchQueue.filter(function(q){return !(q.id===item.id&&q.mediaType===item.mediaType);}); saveWatchQueue(); }
+      else { state.ignored=state.ignored.filter(function(i){return !(i.id===item.id&&i.mediaType===item.mediaType);}); saveIgnored(); }
+      closeSheet(); toast("Removed");
+      if (state.tab==="library") renderLibrary();
+    });
+
+    var markBtn = $("libMarkSeenBtn");
+    markBtn.addEventListener("click", function(){
+      /* set progress to 100% for TV shows in queue before marking seen */
+      if (item._status==="queue" && item.mediaType==="tv" && item.totalSeasons){
+        var lastSeason = item.totalSeasons;
+        var lastEp = 0;
+        if (item.seasons && item.seasons.length){
+          var ls = item.seasons.find(function(s){ return s.n === lastSeason; });
+          if (ls) lastEp = ls.eps;
+        }
+        saveProgress(item, lastSeason, lastEp);
+      }
+      if (item._status==="queue"){ state.watchQueue=state.watchQueue.filter(function(q){return !(q.id===item.id&&q.mediaType===item.mediaType);}); saveWatchQueue(); }
+      else { state.ignored=state.ignored.filter(function(i){return !(i.id===item.id&&i.mediaType===item.mediaType);}); saveIgnored(); }
+      closeSheet();
+      openQuickRateSheet(item);
+    });
+
+    var mqBtn = $("libMoveQueueBtn");
+    if (mqBtn){
+      mqBtn.addEventListener("click", function(){
+        state.ignored=state.ignored.filter(function(i){return !(i.id===item.id&&i.mediaType===item.mediaType);}); saveIgnored();
+        closeSheet(); addToWatchQueue(item, true);
+        if (state.tab==="library") renderLibrary();
+      });
+    }
+    openSheetBackdrop();
+  }
+
+  function saveProgress(item, season, episode){
+    var r = state.watchQueue.find(function(q){ return q.id===item.id && q.mediaType===item.mediaType; });
+    if (!r) return;
+    r.progressSeason=season; r.progressEpisode=episode;
+    item.progressSeason=season; item.progressEpisode=episode;
+    saveWatchQueue();
+  }
+
+  function isProgressComplete(item){
+    var r = state.watchQueue.find(function(q){ return q.id===item.id && q.mediaType===item.mediaType; });
+    if (!r || !r.totalSeasons) return false;
+    var sn = r.progressSeason, ep = r.progressEpisode;
+    if (sn !== r.totalSeasons) return false;
+    if (r.seasons && r.seasons.length){
+      var lastS = r.seasons.find(function(s){ return s.n === sn; });
+      return lastS ? ep === lastS.eps : false;
+    }
+    return ep > 0;
+  }
+
+  /* ---------------- genres (shared) ---------------- */
+  function ensureGenres(){
+    if (Object.keys(state.genresMovie).length && Object.keys(state.genresTv).length) return Promise.resolve();
+    return Promise.all([
+      tmdb("/genre/movie/list"),
+      tmdb("/genre/tv/list")
+    ]).then(function(res){
+      res[0].genres.forEach(function(g){ state.genresMovie[g.id] = g.name; });
+      res[1].genres.forEach(function(g){ state.genresTv[g.id] = g.name; });
+    });
+  }
+
+  /* ---------------- popular ---------------- */
+  $("popularTypeToggle").addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if (!btn) return;
+    state.popularType = btn.getAttribute("data-type");
+    document.querySelectorAll("#popularTypeToggle button").forEach(function(b){ b.classList.toggle("active", b === btn); });
+    loadPopular(true);
+  });
+
+  function loadPopular(reset){
+    if (reset){ state.popularPage = 1; state.popularResults = []; }
+    var page = state.popularPage;
+    if (reset) $("popularGrid").innerHTML = '<div class="spin" style="grid-column:1/-1"></div>';
+    var fetches = state.popularType === "all"
+      ? [tmdb("/movie/popular", { page: page }), tmdb("/tv/popular", { page: page })]
+      : [tmdb("/" + state.popularType + "/popular", { page: page })];
+    Promise.all(fetches).then(function(results){
+      var mapped;
+      if (state.popularType === "all"){
+        var movies = (results[0].results || []).filter(function(r){ return r.poster_path; }).map(function(r){ return normalize(r, "movie"); });
+        var tv    = (results[1].results || []).filter(function(r){ return r.poster_path; }).map(function(r){ return normalize(r, "tv"); });
+        mapped = [];
+        var maxLen = Math.max(movies.length, tv.length);
+        for (var i = 0; i < maxLen; i++){
+          if (movies[i]) mapped.push(movies[i]);
+          if (tv[i])     mapped.push(tv[i]);
+        }
+        state.popularTotalPages = Math.min(results[0].total_pages || 1, results[1].total_pages || 1);
+      } else {
+        mapped = (results[0].results || []).filter(function(r){ return r.poster_path; }).map(function(r){ return normalize(r, state.popularType); });
+        state.popularTotalPages = results[0].total_pages || 1;
+      }
+      state.popularResults = reset ? mapped : state.popularResults.concat(mapped);
+      renderPopularGrid();
+    }).catch(function(e){
+      $("popularGrid").innerHTML = emptyStateHtml("Couldn't load", e.status === 401 ? "Check your API key in Settings." : "Something went wrong. Try again.");
+    });
+  }
+
+  function renderPopularGrid(){
+    var grid = $("popularGrid");
+    if (state.popularResults.length === 0){
+      grid.innerHTML = emptyStateHtml("No results", "Nothing to show right now.");
+      return;
+    }
+    grid.innerHTML = "";
+    state.popularResults.forEach(function(item){
+      var inWatched = state.watched.some(function(w){ return w.id===item.id && w.mediaType===item.mediaType; });
+      var inQueue   = state.watchQueue.some(function(q){ return q.id===item.id && q.mediaType===item.mediaType; });
+      var typeLabel = item.mediaType === "tv" ? "TV" : "Movie";
+      var flag = inWatched
+        ? '<div class="watched-flag">Seen</div>'
+        : inQueue
+          ? '<div class="watched-flag" style="background:rgba(232,179,77,0.92);color:#1a1408">Queue</div>'
+          : "";
+      var card = el(
+        '<div class="poster-card">' +
+          (item.poster ? '<img class="pimg" src="' + IMG_BASE_SM + item.poster + '" alt="">' : '<div class="noimg-sm">' + escapeHtml(item.title) + "</div>") +
+          flag +
+          '<div class="pcap">' +
+            '<p class="ptitle">' + escapeHtml(item.title) + "</p>" +
+            '<p class="pyear">' + escapeHtml(item.year) + " · " + typeLabel +
+              (item.voteAverage ? ' <span style="color:var(--gold);font-weight:700">★ ' + item.voteAverage.toFixed(1) + "</span>" : "") +
+            "</p>" +
+          "</div>" +
+        "</div>"
+      );
+      card.addEventListener("click", function(){ openDetailSheet(item, "add"); });
+      grid.appendChild(card);
+    });
+    if (state.popularPage < Math.min(state.popularTotalPages, 500)){
+      var more = el('<button class="load-more" id="loadMoreBtn">Load more</button>');
+      more.addEventListener("click", function(){
+        state.popularPage++;
+        loadPopular(false);
+      });
+      grid.appendChild(more);
+    }
+  }
+
+  /* ---------------- settings ---------------- */
+  $("saveKeyBtn").addEventListener("click", function(){
+    var val = $("apiKeyInput").value.trim();
+    if (!val) return;
+    state.apiKey = val;
+    state.readToken = null;
+    saveSettings().then(function(){
+      toast("API key saved");
+      state.genresMovie = {}; state.genresTv = {};
+    });
+  });
+  $("clearDataBtn").addEventListener("click", function(){
+    if (!confirm("This clears your entire library (seen, watch queue, ignored) from this device. Continue?")) return;
+    state.watched = []; state.ignored = []; state.watchQueue = [];
+    saveWatched(); saveIgnored(); saveWatchQueue();
+    if (state.tab==="library") renderLibrary();
+    toast("Library cleared");
+  });
+
+  $("exportBtn").addEventListener("click", function(){
+    var payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      watched: state.watched,
+      watchQueue: state.watchQueue,
+      ignored: state.ignored
+    };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "reel-library-" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast("Library exported");
+  });
+
+  $("importBtn").addEventListener("click", function(){ $("importFileInput").click(); });
+
+  $("importFileInput").addEventListener("change", function(){
+    var file = this.files[0];
+    if (!file) return;
+    var input = this;
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try {
+        var data = JSON.parse(e.target.result);
+        if (!data || typeof data !== "object") throw new Error();
+        var w  = Array.isArray(data.watched)    ? data.watched    : [];
+        var q  = Array.isArray(data.watchQueue) ? data.watchQueue : [];
+        var ig = Array.isArray(data.ignored)    ? data.ignored    : [];
+        var msg = "Import " + w.length + " seen, " + q.length + " queued, " + ig.length + " ignored?\n\nThis will replace your current library.";
+        if (!confirm(msg)) return;
+        state.watched = w; state.watchQueue = q; state.ignored = ig;
+        saveWatched(); saveIgnored(); saveWatchQueue();
+        if (state.tab === "library") renderLibrary();
+        toast("Library imported");
+      } catch(err){ toast("Invalid file — expected a Reel export"); }
+    };
+    reader.readAsText(file);
+    input.value = "";
+  });
+
+  /* ---------------- onboarding ---------------- */
+  function showOnboarding(){
+    $("onboarding").style.display = "flex";
+  }
+  function hideOnboarding(){
+    $("onboarding").style.display = "none";
+  }
+  $("onboardBtn").addEventListener("click", function(){
+    var val = $("onboardKeyInput").value.trim();
+    var errEl = $("onboardErr");
+    errEl.textContent = "";
+    if (!val){ errEl.textContent = "Paste an API key to continue."; return; }
+    var btn = this;
+    btn.textContent = "Checking…";
+    var testUrl = new URL(TMDB_BASE + "/configuration");
+    testUrl.searchParams.set("api_key", val);
+    fetch(testUrl.toString()).then(function(res){
+      if (!res.ok) throw new Error("bad key");
+      state.apiKey = val;
+      return saveSettings();
+    }).then(function(){
+      hideOnboarding();
+      btn.textContent = "Continue";
+      init2();
+    }).catch(function(){
+      errEl.textContent = "That key didn't work. Double check and try again.";
+      btn.textContent = "Continue";
+    });
+  });
+
+  /* ---------------- init ---------------- */
+  function init2(){
+    setTab("swipe");
+  }
+
+  loadAll().then(function(){
+    hideOnboarding();
+    init2();
+  });
+
+})();
+</script>
+</body>
+</html>
